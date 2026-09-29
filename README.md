@@ -1,38 +1,38 @@
-# Frios&Clima — V1
+# Sistema de Orçamentos — Refrigeração
 
-V1 frontend responsivo para gestão de orçamentos, financeiro e chamados de uma empresa de refrigeração.
+V2 em React + Vite + Supabase, preparada para publicação na Vercel.
 
-## O que já funciona
-- Layout desktop e mobile
-- Sidebar responsiva
-- Navegação entre Início, Orçamentos, Financeiro, Chamados e Configurações
-- Busca global de orçamentos
-- Listagem e filtros visuais de status
-- Detalhe de orçamento
-- Cards de acompanhamento
-- Dashboard financeiro demonstrativo
-- Chamados derivados de orçamentos aprovados
+## Stack
+- React
+- Vite
+- Supabase Auth
+- Supabase Postgres
+- Vercel
 
-## Importante
-Esta V1 é uma base de interface. Os dados são demonstrativos e ainda não ficam salvos em banco.
-A V2 deve conectar Supabase para autenticação, clientes, equipamentos, serviços, orçamentos, status e chamados.
+## Variáveis da Vercel
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
 
-## Rodar localmente
-Requer Node.js 18+.
-
+## Desenvolvimento local
 ```bash
 npm install
 npm run dev
 ```
 
-## Publicar na Vercel
-1. Crie um repositório NOVO no GitHub, separado dos seus outros projetos.
-2. Envie todos os arquivos desta pasta para o repositório.
-3. Na Vercel, clique em Add New → Project.
-4. Importe somente esse novo repositório.
-5. Framework: Vite (a Vercel normalmente detecta automaticamente).
-6. Build Command: `npm run build`
-7. Output Directory: `dist`
-8. Clique em Deploy.
+## Build
+```bash
+npm run build
+```
 
-Não são necessárias variáveis de ambiente na V1.
+## Banco
+A V2 usa as tabelas isoladas criadas no projeto Supabase:
+- refrig_company
+- refrig_clients
+- refrig_equipment
+- refrig_quotes
+- refrig_quote_items
+- refrig_service_calls
+
+As tabelas existentes do projeto financeiro não são utilizadas pelo sistema de refrigeração.
