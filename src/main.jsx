@@ -27,6 +27,21 @@ const statusLabel = {
 
 const money = (v = 0) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateBR = (v) => v ? new Date(`${v}T12:00:00`).toLocaleDateString('pt-BR') : '—';
+const DEFAULT_COMPANY_NAME = 'Daniel Alves';
+const DEFAULT_COMPANY_SUBTITLE = 'Refrigeração';
+
+function safeFileName(value = '') {
+  return String(value || 'Cliente').trim().replace(/[\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').replace(/^-+|-+$/g, '') || 'Cliente';
+}
+
+function whatsappNumber(value = '') {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function displayCompanyName(value = '') {
+  const name = String(value || '').trim();
+  return !name || /frios\s*&\s*clima/i.test(name) ? DEFAULT_COMPANY_NAME : name;
+}
 
 
 
@@ -73,7 +88,7 @@ function Auth({ onAuth }) {
 
   return <div className="auth-page">
     <div className="auth-card">
-      <div className="auth-brand"><div className="brandmark">F</div><div><strong>Frios&Clima</strong><small>Refrigeração</small></div></div>
+      <div className="auth-brand"><div className="brandmark">D</div><div><strong>{DEFAULT_COMPANY_NAME}</strong><small>{DEFAULT_COMPANY_SUBTITLE}</small></div></div>
       <div className="auth-copy"><h1>{mode === 'login' ? 'Bem-vindo de volta' : mode === 'signup' ? 'Criar acesso' : 'Recuperar senha'}</h1><p>{mode === 'login' ? 'Entre para acompanhar seus orçamentos e serviços.' : mode === 'signup' ? 'Crie o acesso do responsável pelo sistema.' : 'Informe seu e-mail para receber o link de recuperação.'}</p></div>
       <form onSubmit={submit} className="auth-form">
         {mode === 'signup' && <label>Nome<input value={name} onChange={e => setName(e.target.value)} placeholder="Nome do responsável" required /></label>}
@@ -99,6 +114,7 @@ function App() {
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const [editingQuote, setEditingQuote] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => { setSession(data.session); setChecking(false); });
@@ -106,7 +122,8 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const go = (p) => { setPage(p); setSelected(null); setMobile(false); };
+  const go = (p) => { setPage(p); setSelected(null); setEditingQuote(null); setMobile(false); };
+  const openEdit = (quote) => { setEditingQuote(quote); setSelected(null); setPage('editQuote'); setMobile(false); };
   const refreshData = () => setRefresh(v => v + 1);
 
   if (checking) return <Loading label="Conectando..." />;
@@ -114,15 +131,15 @@ function App() {
 
   return <div className="app">
     <aside className={`sidebar ${mobile ? 'open' : ''}`}>
-      <div className="brand"><div className="brandmark">F</div><div><strong>Frios&Clima</strong><small>Refrigeração</small></div><button className="close" onClick={() => setMobile(false)}><X size={20}/></button></div>
-      <div className="profile"><div className="avatar">FC</div><div><strong>{session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Administrador'}</strong><small>Administrador</small></div></div>
+      <div className="brand"><div className="brandmark">D</div><div><strong>{DEFAULT_COMPANY_NAME}</strong><small>{DEFAULT_COMPANY_SUBTITLE}</small></div><button className="close" onClick={() => setMobile(false)}><X size={20}/></button></div>
+      <div className="profile"><div className="avatar">DA</div><div><strong>{session.user.user_metadata?.full_name || DEFAULT_COMPANY_NAME}</strong><small>Administrador</small></div></div>
       <nav>{nav.map(([id, label, Icon]) => <button key={id} className={page === id && !selected ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/><span>{label}</span></button>)}</nav>
       <div className="sidebar-bottom"><button onClick={() => supabase.auth.signOut()}><LogOut size={18}/> Sair</button></div>
     </aside>
     {mobile && <div className="overlay" onClick={() => setMobile(false)} />}
     <main className="main">
-      <header><button className="menu" onClick={() => setMobile(true)}><Menu/></button><div className="header-search"><Search size={18}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar orçamento, cliente..."/></div><div className="header-user"><div className="avatar small">FC</div><span>Frios&Clima</span></div></header>
-      {selected ? <QuoteDetail quote={selected} back={() => setSelected(null)} onChanged={refreshData} /> : page === 'newQuote' ? <NewQuote go={go} /> : page === 'home' ? <Home go={go} setSelected={setSelected} refresh={refresh} /> : page === 'quotes' ? <Quotes search={search} setSelected={setSelected} go={go} refresh={refresh} /> : page === 'finance' ? <Finance setSelected={setSelected} refresh={refresh} /> : page === 'tickets' ? <Tickets setSelected={setSelected} refresh={refresh} /> : <SettingsPage refresh={refreshData} />}
+      <header><button className="menu" onClick={() => setMobile(true)}><Menu/></button><div className="header-search"><Search size={18}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar orçamento, cliente..."/></div></header>
+      {selected ? <QuoteDetail quote={selected} back={() => setSelected(null)} onChanged={refreshData} onEdit={openEdit} /> : page === 'newQuote' ? <NewQuote go={go} /> : page === 'editQuote' ? <NewQuote go={go} quote={editingQuote} /> : page === 'home' ? <Home go={go} setSelected={setSelected} refresh={refresh} /> : page === 'quotes' ? <Quotes search={search} setSelected={setSelected} go={go} refresh={refresh} /> : page === 'finance' ? <Finance setSelected={setSelected} refresh={refresh} /> : page === 'tickets' ? <Tickets setSelected={setSelected} refresh={refresh} /> : <SettingsPage refresh={refreshData} />}
     </main>
   </div>;
 }
@@ -146,7 +163,7 @@ function Home({ go, setSelected, refresh }) {
   const attention = quotes.filter(q => q.status === 'aguardando_resposta').slice(0, 5);
   const approved = quotes.filter(q => ['aprovado', 'em_andamento', 'concluido'].includes(q.status));
   const total = approved.reduce((a, q) => a + Number(q.total_final || 0), 0);
-  return <div className="content"><PageHead title="Olá, Frios&Clima 👋" sub="Acompanhe seus orçamentos e serviços de hoje." action={<button className="primary" onClick={() => go('quotes')}><Plus size={18}/> Novo orçamento</button>}/>
+  return <div className="content"><PageHead title={`Olá, ${DEFAULT_COMPANY_NAME} 👋`} sub="Acompanhe seus orçamentos e serviços de hoje." action={<button className="primary" onClick={() => go('newQuote')}><Plus size={18}/> Novo orçamento</button>}/>
     {error && <div className="form-error">{error}</div>}
     <div className="stats"><Stat icon={Clock3} label="Aguardando resposta" value={String(counts.aguardando_resposta).padStart(2,'0')} tone="orange"/><Stat icon={CheckCircle2} label="Aprovados" value={String(counts.aprovado).padStart(2,'0')} tone="green"/><Stat icon={PlayCircle} label="Em andamento" value={String(counts.em_andamento).padStart(2,'0')} tone="blue"/><Stat icon={PackageCheck} label="Concluídos" value={String(counts.concluido).padStart(2,'0')} tone="purple"/></div>
     <section className="panel"><div className="panel-head"><div><h2>Orçamentos que precisam de atenção</h2><p>Acompanhe os clientes que ainda não responderam.</p></div><button className="link" onClick={() => go('quotes')}>Ver todos <ChevronRight size={16}/></button></div>
@@ -171,36 +188,102 @@ function Quotes({ search, setSelected, go, refresh }) {
 }
 
 
-function NewQuote({ go }) {
+function NewQuote({ go, quote = null }) {
   const [client, setClient] = useState({ name:'', phone:'', whatsapp:'', email:'', address:'', notes:'' });
   const [equipment, setEquipment] = useState([{ type:'', brand:'', model:'', capacity:'', observation:'' }]);
   const [items, setItems] = useState([{ equipmentIndex:0, service_name:'Lavagem completa', service_description:'', quantity:1, original:'', discount:'', final:'' }]);
-  const [saving, setSaving] = useState(false); const [error, setError] = useState('');
-  const addEquipment = () => { const next = [...equipment, {type:'',brand:'',model:'',capacity:'',observation:''}]; setEquipment(next); setItems([...items, { equipmentIndex: next.length-1, service_name:'', service_description:'', quantity:1, original:'', discount:'', final:'' }]); };
+  const [saving, setSaving] = useState(false); const [loadingEdit, setLoadingEdit] = useState(Boolean(quote)); const [error, setError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    if (!quote) { setLoadingEdit(false); return () => { alive = false; }; }
+    (async () => {
+      setLoadingEdit(true);
+      const { data, error: itemError } = await supabase.from('refrig_quote_items')
+        .select('*, refrig_equipment(id,equipment_type,brand,model,capacity,observation)')
+        .eq('quote_id', quote.id)
+        .order('created_at', { ascending: true });
+      if (!alive) return;
+      if (itemError) { setError(itemError.message); setLoadingEdit(false); return; }
+      const clientData = quote.refrig_clients || {};
+      setClient({
+        name: clientData.name || '', phone: clientData.phone || '', whatsapp: clientData.whatsapp || '',
+        email: clientData.email || '', address: clientData.address || '', notes: quote.notes || ''
+      });
+      const equipmentMap = new Map();
+      (data || []).forEach(row => {
+        const e = row.refrig_equipment || {};
+        if (!equipmentMap.has(row.equipment_id)) equipmentMap.set(row.equipment_id, {
+          id: row.equipment_id, type:e.equipment_type || '', brand:e.brand || '', model:e.model || '', capacity:e.capacity || '', observation:e.observation || ''
+        });
+      });
+      const eqs = Array.from(equipmentMap.values());
+      const indexById = new Map(eqs.map((e,i) => [e.id, i]));
+      setEquipment(eqs.length ? eqs : [{ type:'', brand:'', model:'', capacity:'', observation:'' }]);
+      setItems((data || []).map(row => ({
+        id: row.id, equipmentIndex:indexById.get(row.equipment_id) ?? 0, service_name:row.service_name || '',
+        service_description:row.service_description || '', quantity:Number(row.quantity || 1), original:String(row.unit_original_value ?? ''),
+        discount:String(row.unit_discount ?? ''), final:String(row.unit_final_value ?? '')
+      })));
+      setLoadingEdit(false);
+    })();
+    return () => { alive = false; };
+  }, [quote]);
+
+  const addEquipment = () => {
+    const next = [...equipment, {type:'',brand:'',model:'',capacity:'',observation:''}];
+    setEquipment(next);
+    setItems([...items, { equipmentIndex: next.length-1, service_name:'', service_description:'', quantity:1, original:'', discount:'', final:'' }]);
+  };
   const addItem = () => setItems([...items, { equipmentIndex:0, service_name:'', service_description:'', quantity:1, original:'', discount:'', final:'' }]);
   const updateEquipment = (i,key,value) => setEquipment(equipment.map((e,idx)=>idx===i?{...e,[key]:value}:e));
   const updateItem = (i,key,value) => setItems(items.map((it,idx)=>idx===i?{...it,[key]:value}:it));
   const total = items.reduce((sum,it)=>sum + Number(it.quantity||0) * Number(it.final||0), 0);
+
   async function save() {
-    setError(''); if (!client.name.trim()) return setError('Informe o nome do cliente.');
+    setError('');
+    if (!client.name.trim()) return setError('Informe o nome do cliente.');
     if (equipment.some(e => !e.type.trim())) return setError('Informe o tipo de todos os equipamentos.');
     if (!items.length || items.some(i => !i.service_name.trim() || !i.final)) return setError('Informe o serviço e o valor final de cada item.');
     setSaving(true);
     try {
-      const { data: auth } = await supabase.auth.getUser(); const owner_id = auth.user.id;
-      const { data: c, error: ce } = await supabase.from('refrig_clients').insert({ owner_id, ...client }).select().single(); if (ce) throw ce;
-      const { data: eq, error: ee } = await supabase.from('refrig_equipment').insert(equipment.map(e => ({ owner_id, client_id:c.id, equipment_type:e.type, brand:e.brand, model:e.model, capacity:e.capacity, observation:e.observation }))).select().order('created_at'); if (ee) throw ee;
-      const { data: q, error: qe } = await supabase.from('refrig_quotes').insert({ owner_id, client_id:c.id, notes:client.notes, total_original:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.original||0),0), total_discount:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.discount||0),0), total_final:total }).select().single(); if (qe) throw qe;
-      const rows = items.map(i => ({ quote_id:q.id, equipment_id:eq[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
-      const { error: ie } = await supabase.from('refrig_quote_items').insert(rows); if (ie) throw ie;
+      const { data: auth } = await supabase.auth.getUser();
+      const owner_id = auth.user.id;
+      if (!quote) {
+        const { data: c, error: ce } = await supabase.from('refrig_clients').insert({ owner_id, ...client }).select().single(); if (ce) throw ce;
+        const { data: eq, error: ee } = await supabase.from('refrig_equipment').insert(equipment.map(e => ({ owner_id, client_id:c.id, equipment_type:e.type, brand:e.brand, model:e.model, capacity:e.capacity, observation:e.observation }))).select().order('created_at'); if (ee) throw ee;
+        const { data: q, error: qe } = await supabase.from('refrig_quotes').insert({ owner_id, client_id:c.id, notes:client.notes, total_original:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.original||0),0), total_discount:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.discount||0),0), total_final:total }).select().single(); if (qe) throw qe;
+        const rows = items.map(i => ({ quote_id:q.id, equipment_id:eq[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
+        const { error: ie } = await supabase.from('refrig_quote_items').insert(rows); if (ie) throw ie;
+      } else {
+        const { error: ce } = await supabase.from('refrig_clients').update(client).eq('id', quote.client_id); if (ce) throw ce;
+        const { data: currentEq, error: eqReadError } = await supabase.from('refrig_equipment').select('id').eq('client_id', quote.client_id); if (eqReadError) throw eqReadError;
+        const existingIds = new Set((currentEq || []).map(e => e.id));
+        const keepIds = new Set(equipment.filter(e => e.id).map(e => e.id));
+        const { error: deleteItemsError } = await supabase.from('refrig_quote_items').delete().eq('quote_id', quote.id); if (deleteItemsError) throw deleteItemsError;
+        for (const e of equipment) {
+          if (e.id) {
+            const { error } = await supabase.from('refrig_equipment').update({ equipment_type:e.type, brand:e.brand, model:e.model, capacity:e.capacity, observation:e.observation }).eq('id',e.id); if (error) throw error;
+          } else {
+            const { data: inserted, error } = await supabase.from('refrig_equipment').insert({ owner_id, client_id:quote.client_id, equipment_type:e.type, brand:e.brand, model:e.model, capacity:e.capacity, observation:e.observation }).select().single(); if (error) throw error;
+            e.id = inserted.id;
+          }
+        }
+        for (const id of existingIds) if (!keepIds.has(id)) { const { error } = await supabase.from('refrig_equipment').delete().eq('id',id); if (error) throw error; }
+        const { error: qe } = await supabase.from('refrig_quotes').update({ notes:client.notes, total_original:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.original||0),0), total_discount:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.discount||0),0), total_final:total }).eq('id',quote.id); if (qe) throw qe;
+        const rows = items.map(i => ({ quote_id:quote.id, equipment_id:equipment[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
+        const { error: ie } = await supabase.from('refrig_quote_items').insert(rows); if (ie) throw ie;
+      }
       go('quotes');
     } catch (e) { setError(e.message || 'Não foi possível salvar o orçamento.'); }
     finally { setSaving(false); }
   }
-  return <div className="content"><button className="back" onClick={() => go('quotes')}><ArrowLeft size={18}/> Voltar</button><PageHead title="Criar orçamento" sub="Monte uma proposta com serviços e valores por equipamento." action={<button className="primary" onClick={save} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} Salvar orçamento</button>}/>{error&&<div className="form-error">{error}</div>}
+
+  if (loadingEdit) return <div className="content"><Loading label="Carregando orçamento..."/></div>;
+  return <div className="content"><button className="back" onClick={() => go('quotes')}><ArrowLeft size={18}/> Voltar</button><PageHead title={quote ? `Editar ORC-${String(quote.quote_number).padStart(4,'0')}` : 'Criar orçamento'} sub="Monte uma proposta com serviços e valores por equipamento." action={<button className="primary" onClick={save} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} {quote?'Salvar alterações':'Salvar orçamento'}</button>}/>{error&&<div className="form-error">{error}</div>}
     <section className="panel form-section"><div className="panel-head"><div><h2>1. Cliente</h2><p>Quem receberá o orçamento.</p></div></div><div className="form-grid">{[['name','Nome','text'],['phone','Telefone','text'],['whatsapp','WhatsApp','text'],['email','E-mail','email'],['address','Endereço','text']].map(([k,l,t])=><label key={k}>{l}<input type={t} value={client[k]} onChange={e=>setClient({...client,[k]:e.target.value})}/></label>)}</div><label>Observações<textarea value={client.notes} onChange={e=>setClient({...client,notes:e.target.value})}/></label></section>
-    <section className="panel form-section"><div className="panel-head"><div><h2>2. Equipamentos</h2><p>Cadastre cada equipamento que receberá serviço.</p></div><button className="secondary" onClick={addEquipment}><Plus size={16}/> Adicionar equipamento</button></div>{equipment.map((e,i)=><div className="equipment-form" key={i}><div className="mini-index">{String(i+1).padStart(2,'0')}</div><div className="form-grid equipment-fields"><label>Tipo*<input value={e.type} onChange={ev=>updateEquipment(i,'type',ev.target.value)} placeholder="Ex.: Piso-Teto"/></label><label>Marca<input value={e.brand} onChange={ev=>updateEquipment(i,'brand',ev.target.value)}/></label><label>Modelo<input value={e.model} onChange={ev=>updateEquipment(i,'model',ev.target.value)}/></label><label>Capacidade<input value={e.capacity} onChange={ev=>updateEquipment(i,'capacity',ev.target.value)} placeholder="60.000 BTU"/></label></div></div>)}</section>
-    <section className="panel form-section"><div className="panel-head"><div><h2>3. Serviços</h2><p>O mesmo equipamento pode ter vários serviços e cada combinação tem seu próprio preço.</p></div><button className="secondary" onClick={addItem}><Plus size={16}/> Adicionar serviço</button></div>{items.map((it,i)=><div className="service-editor" key={i}><div className="service-editor-head"><strong>Serviço {String(i+1).padStart(2,'0')}</strong><button className="iconbtn" onClick={()=>setItems(items.filter((_,idx)=>idx!==i))} disabled={items.length===1}><Trash2 size={17}/></button></div><div className="form-grid"><label>Equipamento<select value={it.equipmentIndex} onChange={e=>updateItem(i,'equipmentIndex',Number(e.target.value))}>{equipment.map((e,idx)=><option key={idx} value={idx}>{idx+1}. {e.type||'Equipamento'}</option>)}</select></label><label>Serviço*<input value={it.service_name} onChange={e=>updateItem(i,'service_name',e.target.value)} placeholder="Lavagem completa"/></label><label>Quantidade<input type="number" min="1" value={it.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)}/></label><label>Valor original<input type="number" step="0.01" value={it.original} onChange={e=>updateItem(i,'original',e.target.value)}/></label><label>Desconto<input type="number" step="0.01" value={it.discount} onChange={e=>updateItem(i,'discount',e.target.value)}/></label><label>Valor final*<input type="number" step="0.01" value={it.final} onChange={e=>updateItem(i,'final',e.target.value)}/></label></div><div className="item-total">Total do item <strong>{money(Number(it.quantity||0)*Number(it.final||0))}</strong></div></div>)}</section>
+    <section className="panel form-section"><div className="panel-head"><div><h2>2. Equipamentos</h2><p>Cadastre cada equipamento que receberá serviço.</p></div><button className="secondary" onClick={addEquipment}><Plus size={16}/> Adicionar equipamento</button></div>{equipment.map((e,i)=><div className="equipment-form" key={e.id || i}><div className="mini-index">{String(i+1).padStart(2,'0')}</div><div className="form-grid equipment-fields"><label>Tipo*<input value={e.type} onChange={ev=>updateEquipment(i,'type',ev.target.value)} placeholder="Ex.: Piso-Teto"/></label><label>Marca<input value={e.brand} onChange={ev=>updateEquipment(i,'brand',ev.target.value)}/></label><label>Modelo<input value={e.model} onChange={ev=>updateEquipment(i,'model',ev.target.value)}/></label><label>Capacidade<input value={e.capacity} onChange={ev=>updateEquipment(i,'capacity',ev.target.value)} placeholder="60.000 BTU"/></label></div></div>)}</section>
+    <section className="panel form-section"><div className="panel-head"><div><h2>3. Serviços</h2><p>O mesmo equipamento pode ter vários serviços e cada combinação tem seu próprio preço.</p></div><button className="secondary" onClick={addItem}><Plus size={16}/> Adicionar serviço</button></div>{items.map((it,i)=><div className="service-editor" key={it.id || i}><div className="service-editor-head"><strong>Serviço {String(i+1).padStart(2,'0')}</strong><button className="iconbtn" onClick={()=>setItems(items.filter((_,idx)=>idx!==i))} disabled={items.length===1}><Trash2 size={17}/></button></div><div className="form-grid"><label>Equipamento<select value={it.equipmentIndex} onChange={e=>updateItem(i,'equipmentIndex',Number(e.target.value))}>{equipment.map((e,idx)=><option key={e.id || idx} value={idx}>{idx+1}. {e.type||'Equipamento'}</option>)}</select></label><label>Serviço*<input value={it.service_name} onChange={e=>updateItem(i,'service_name',e.target.value)} placeholder="Lavagem completa"/></label><label>Quantidade<input type="number" min="1" value={it.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)}/></label><label>Valor original<input type="number" step="0.01" value={it.original} onChange={e=>updateItem(i,'original',e.target.value)}/></label><label>Desconto<input type="number" step="0.01" value={it.discount} onChange={e=>updateItem(i,'discount',e.target.value)}/></label><label>Valor final*<input type="number" step="0.01" value={it.final} onChange={e=>updateItem(i,'final',e.target.value)}/></label></div><div className="item-total">Total do item <strong>{money(Number(it.quantity||0)*Number(it.final||0))}</strong></div></div>)}</section>
     <section className="panel total-box"><span>Total do orçamento</span><strong>{money(total)}</strong></section>
   </div>;
 }
@@ -247,7 +330,8 @@ async function generateQuotePdf({ quote, client, items, company }) {
 
   const issueDate = quote.issue_date || quote.created_at?.slice(0, 10);
   const validity = quote.validity_days || 7;
-  const companyName = pdfText(company?.company_name || 'Frios&Clima');
+  const companyName = pdfText(displayCompanyName(company?.company_name));
+  const fileClientName = safeFileName(client?.name || 'Cliente');
   const total = Number(quote.total_final || 0);
 
   // Header
@@ -301,9 +385,16 @@ async function generateQuotePdf({ quote, client, items, company }) {
   doc.line(margin + contentW/2, 31, margin + contentW/2, 47);
   doc.setLineWidth(0.2);
   let cy = 35;
-  if (company?.phone) { doc.text(pdfText(company.phone), margin + contentW/2 + 4, cy, { maxWidth: contentW/2 - 8 }); cy += 4; }
-  if (company?.whatsapp) { doc.text(pdfText(company.whatsapp), margin + contentW/2 + 4, cy, { maxWidth: contentW/2 - 8 }); cy += 4; }
-  if (company?.document) { doc.text(pdfText(company.document), margin + contentW/2 + 4, cy, { maxWidth: contentW/2 - 8 }); }
+  const contactLines = [
+    company?.phone || client?.phone,
+    company?.whatsapp || client?.whatsapp,
+    company?.email || client?.email
+  ].filter(Boolean);
+  if (!contactLines.length && company?.document) contactLines.push(company.document);
+  contactLines.slice(0, 3).forEach(value => {
+    doc.text(pdfText(value), margin + contentW/2 + 4, cy, { maxWidth: contentW/2 - 8 });
+    cy += 4;
+  });
 
   let y = 52;
   const sectionTitle = (title) => {
@@ -443,26 +534,25 @@ async function generateQuotePdf({ quote, client, items, company }) {
   doc.text('pela confiança!', W - 42, y + 12, { align:'center' });
 
   // Critical: never add a page. The document is deliberately composed inside one A4 page.
-  doc.save(`ORC-${String(quote.quote_number).padStart(4,'0')}.pdf`);
+  doc.save(`ORC-${String(quote.quote_number).padStart(4,'0')} - ${fileClientName}.pdf`);
 }
 
-function QuoteDetail({ quote, back, onChanged }) {
+function QuoteDetail({ quote, back, onChanged, onEdit }) {
   const [saving,setSaving]=useState(false);
   const [status,setStatus]=useState(quote.status);
   const [items,setItems]=useState([]);
-  const [company,setCompany]=useState({company_name:'Frios&Clima',document:'',phone:'',whatsapp:'',email:'',address:''});
+  const [company,setCompany]=useState({company_name:DEFAULT_COMPANY_NAME,document:'',phone:'',whatsapp:'',email:'',address:''});
   const [pdfLoading,setPdfLoading]=useState(false);
+  const [actionsOpen,setActionsOpen]=useState(false);
+  const [deleting,setDeleting]=useState(false);
 
   useEffect(()=>{
     let alive=true;
-    supabase.from('refrig_quote_items')
-      .select('*, refrig_equipment(equipment_type,brand,model,capacity,observation)')
-      .eq('quote_id',quote.id)
-      .then(({data})=>{ if(alive) setItems(data||[]); });
+    supabase.from('refrig_quote_items').select('*, refrig_equipment(equipment_type,brand,model,capacity,observation)').eq('quote_id',quote.id).then(({data})=>{if(alive)setItems(data||[]);});
     supabase.auth.getUser().then(async({data})=>{
       if(!data.user || !alive) return;
       const {data:row}=await supabase.from('refrig_company').select('*').eq('owner_id',data.user.id).maybeSingle();
-      if(row && alive) setCompany(row);
+      if(row && alive) setCompany({...row,company_name:displayCompanyName(row.company_name)});
     });
     return ()=>{alive=false;};
   },[quote.id]);
@@ -475,23 +565,50 @@ function QuoteDetail({ quote, back, onChanged }) {
   }
 
   async function handlePdf(){
-    if (pdfLoading) return;
+    if(pdfLoading)return;
     setPdfLoading(true);
-    try {
-      await generateQuotePdf({ quote:{...quote,status}, client, items, company });
-    } catch (error) {
+    try{await generateQuotePdf({quote:{...quote,status},client,items,company});}
+    catch(error){console.error(error);alert('Não foi possível gerar o PDF. Verifique sua conexão e tente novamente.');}
+    finally{setPdfLoading(false);setActionsOpen(false);}
+  }
+
+  function handleWhatsApp(){
+    const number=whatsappNumber(client.whatsapp || client.phone);
+    if(!number){alert('Este cliente não possui telefone ou WhatsApp cadastrado.');return;}
+    const quoteNo=`ORC-${String(quote.quote_number).padStart(4,'0')}`;
+    const message=`Olá, ${client.name || 'tudo bem'}! Segue o orçamento ${quoteNo} da ${displayCompanyName(company.company_name)}. Valor total: ${money(quote.total_final)}. Qualquer dúvida, estou à disposição.`;
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
+    setActionsOpen(false);
+  }
+
+  async function handleDelete(){
+    if(deleting)return;
+    const quoteNo=`ORC-${String(quote.quote_number).padStart(4,'0')}`;
+    const confirmed=window.confirm(`Excluir o ${quoteNo}?\n\nEssa ação é permanente e removerá o orçamento e os itens vinculados. Não será possível desfazer.`);
+    if(!confirmed){setActionsOpen(false);return;}
+    setDeleting(true);
+    try{
+      const {error:callError}=await supabase.from('refrig_service_calls').delete().eq('quote_id',quote.id);
+      if(callError)throw callError;
+      const {error:itemError}=await supabase.from('refrig_quote_items').delete().eq('quote_id',quote.id);
+      if(itemError)throw itemError;
+      const {error:quoteError}=await supabase.from('refrig_quotes').delete().eq('id',quote.id);
+      if(quoteError)throw quoteError;
+      onChanged();
+      setActionsOpen(false);
+      back();
+    }catch(error){
       console.error(error);
-      alert('Não foi possível gerar o PDF. Verifique sua conexão e tente novamente.');
-    } finally {
-      setPdfLoading(false);
+      alert(`Não foi possível excluir o orçamento.\n\n${error.message || 'Verifique as permissões do banco de dados.'}`);
+    }finally{
+      setDeleting(false);
     }
   }
 
   const client=quote.refrig_clients||{};
-
   return <div className="content quote-screen">
     <button className="back" onClick={back}><ArrowLeft size={18}/> Voltar para orçamentos</button>
-    <PageHead title={`ORC-${String(quote.quote_number).padStart(4,'0')}`} sub="Detalhes do orçamento" action={<div className="actions"><button className="secondary"><Pencil size={17}/> Editar</button><button className="secondary" onClick={handlePdf} disabled={pdfLoading}>{pdfLoading?<LoaderCircle className="spin" size={17}/>:<Download size={17}/>} {pdfLoading?'Gerando PDF…':'PDF'}</button><button className="primary"><MessageCircle size={17}/> WhatsApp</button></div>}/>
+    <PageHead title={`ORC-${String(quote.quote_number).padStart(4,'0')}`} sub="Detalhes do orçamento" action={<div className="actions-menu-wrap"><button className="secondary actions-trigger" onClick={()=>setActionsOpen(v=>!v)}><MoreHorizontal size={18}/> Ações</button>{actionsOpen&&<div className="actions-menu"><button onClick={()=>{setActionsOpen(false);onEdit(quote);}}><Pencil size={16}/> Editar orçamento</button><button onClick={handlePdf} disabled={pdfLoading}>{pdfLoading?<LoaderCircle className="spin" size={16}/>:<Download size={16}/>} {pdfLoading?'Gerando PDF…':'Gerar PDF'}</button><button onClick={handleWhatsApp}><MessageCircle size={16}/> Enviar pelo WhatsApp</button><div className="actions-menu-divider"></div><button className="danger-action" onClick={handleDelete} disabled={deleting}><Trash2 size={16}/> {deleting?'Excluindo…':'Excluir orçamento'}</button></div>}</div>}/>
     <div className="detail-grid">
       <section className="panel"><div className="panel-head"><div><h2>Cliente</h2><p>Dados do solicitante</p></div><Badge status={status}/></div><div className="info-grid"><Info icon={UserRound} label="Nome" value={client.name||'—'}/><Info icon={Phone} label="Telefone" value={client.phone||'—'}/><Info icon={MapPin} label="Endereço" value={client.address||'—'}/><Info icon={Mail} label="E-mail" value={client.email||'—'}/></div></section>
       <section className="panel"><div className="panel-head"><div><h2>Serviços</h2><p>Composição do orçamento</p></div></div>{items.map(i=><div className="service-line" key={i.id}><div><strong>{i.service_name}</strong><span>{i.quantity} × {i.refrig_equipment?.equipment_type || 'Equipamento'} {i.refrig_equipment?.capacity || ''}</span></div><strong>{money(Number(i.unit_final_value||0)*Number(i.quantity||1))}</strong></div>)}<div className="total"><span>Total</span><strong>{money(quote.total_final)}</strong></div></section>
@@ -503,10 +620,24 @@ function QuoteDetail({ quote, back, onChanged }) {
 
 function Info({icon:Icon,label,value}){return <div className="info"><Icon size={17}/><div><small>{label}</small><span>{value}</span></div></div>}
 
-function Finance({setSelected,refresh}) { const {quotes,loading}=useQuotes(refresh); const approved=quotes.filter(q=>['aprovado','em_andamento','concluido'].includes(q.status)); const total=approved.reduce((a,q)=>a+Number(q.total_final||0),0); return <div className="content"><PageHead title="Financeiro" sub="Acompanhe os valores dos serviços aprovados."/><div className="finance-cards"><div className="bigmetric"><span>Total aprovado</span><strong>{money(total)}</strong><small>Orçamentos aprovados, em andamento e concluídos.</small></div><div className="bigmetric"><span>Serviços aprovados</span><strong>{approved.length}</strong><small>Chamados vinculados ao orçamento.</small></div></div><div className="tablepanel"><div className="table-title"><div><h2>Movimentações</h2><p>Clique em um item para consultar o orçamento.</p></div></div>{loading?<Loading/>:<table><thead><tr><th>Orçamento</th><th>Cliente</th><th>Data</th><th>Status</th><th>Valor</th></tr></thead><tbody>{approved.map(q=><tr key={q.id} onClick={()=>setSelected(q)}><td><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong></td><td>{q.refrig_clients?.name||'Cliente'}</td><td>{dateBR(q.issue_date)}</td><td><Badge status={q.status}/></td><td><strong>{money(q.total_final)}</strong></td></tr>)}</tbody></table>}</div></div> }
+function Finance({setSelected,refresh}) {
+  const {quotes,loading}=useQuotes(refresh);
+  const approved=quotes.filter(q=>['aprovado','em_andamento','concluido'].includes(q.status));
+  const total=approved.reduce((a,q)=>a+Number(q.total_final||0),0);
+  return <div className="content finance-page"><PageHead title="Financeiro" sub="Acompanhe os valores dos serviços aprovados."/><div className="finance-cards"><div className="bigmetric"><span>Total aprovado</span><strong>{money(total)}</strong><small>Orçamentos aprovados, em andamento e concluídos.</small></div><div className="bigmetric"><span>Serviços aprovados</span><strong>{approved.length}</strong><small>Chamados vinculados ao orçamento.</small></div></div><div className="tablepanel finance-tablepanel"><div className="table-title"><div><h2>Movimentações</h2><p>Clique em um item para consultar o orçamento.</p></div></div>{loading?<Loading/>:<><table><thead><tr><th>Orçamento</th><th>Cliente</th><th>Data</th><th>Status</th><th>Valor</th></tr></thead><tbody>{approved.map(q=><tr key={q.id} onClick={()=>setSelected(q)}><td><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong></td><td>{q.refrig_clients?.name||'Cliente'}</td><td>{dateBR(q.issue_date)}</td><td><Badge status={q.status}/></td><td><strong>{money(q.total_final)}</strong></td></tr>)}</tbody></table><div className="finance-mobile-list">{approved.map(q=><div className="finance-mobile-card" key={q.id} onClick={()=>setSelected(q)}><div><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong><Badge status={q.status}/></div><h3>{q.refrig_clients?.name||'Cliente'}</h3><p>{dateBR(q.issue_date)}</p><strong>{money(q.total_final)}</strong></div>)}{!approved.length&&<Empty title="Nenhum orçamento aprovado" text="Os orçamentos aprovados aparecerão aqui."/>}</div></>}</div></div>;
+}
 
 function Tickets({setSelected,refresh}) { const [tickets,setTickets]=useState([]); const [loading,setLoading]=useState(true); useEffect(()=>{supabase.from('refrig_service_calls').select('*, refrig_quotes(*, refrig_clients(name))').order('created_at',{ascending:false}).then(({data})=>{setTickets(data||[]);setLoading(false);});},[refresh]); return <div className="content"><PageHead title="Chamados" sub="Serviços aprovados e em execução."/><div className="ticket-filters"><button className="selected">Todos <b>{tickets.length}</b></button><button>Aprovados</button><button>Em andamento</button><button>Concluídos</button></div>{loading?<Loading/>:<div className="ticket-list">{tickets.map(t=><div className="ticket" key={t.id} onClick={()=>t.refrig_quotes&&setSelected(t.refrig_quotes)}><div className="ticket-num">CH-{String(t.call_number).padStart(4,'0')}</div><div className="grow"><strong>{t.refrig_quotes?.refrig_clients?.name||'Cliente'}</strong><span>ORC-{String(t.refrig_quotes?.quote_number||0).padStart(4,'0')}</span></div><strong>{money(t.refrig_quotes?.total_final)}</strong><Badge status={t.status==='aprovado'?'aprovado':t.status}/><ChevronRight size={18}/></div>)}{!tickets.length&&<Empty title="Nenhum chamado ainda" text="Um chamado será criado automaticamente quando um orçamento for aprovado."/>}</div>}</div> }
 
-function SettingsPage({refresh}) { const [company,setCompany]=useState({company_name:'',document:'',phone:'',whatsapp:'',email:'',address:''}); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [message,setMessage]=useState(''); useEffect(()=>{supabase.auth.getUser().then(async({data})=>{const {data:row}=await supabase.from('refrig_company').select('*').eq('owner_id',data.user.id).maybeSingle(); if(row)setCompany(row); else setCompany(c=>({...c,email:data.user.email||''}));setLoading(false);});},[]); async function save(){setSaving(true);setMessage('');const {data}=await supabase.auth.getUser();const {error}=await supabase.from('refrig_company').upsert({...company,owner_id:data.user.id},{onConflict:'owner_id'});setMessage(error?error.message:'Dados salvos com sucesso.');setSaving(false);if(!error)refresh();} if(loading)return <div className="content"><Loading/> </div>; return <div className="content"><PageHead title="Configurações" sub="Gerencie os dados que serão usados nos próximos orçamentos e PDFs."/><div className="settings-grid"><section className="panel"><div className="panel-head"><div><h2>Perfil</h2><p>Dados do acesso atual.</p></div></div><label>E-mail<input value={company.email} readOnly/></label><button className="secondary" onClick={()=>supabase.auth.resetPasswordForEmail(company.email,{redirectTo:window.location.origin})}>Redefinir senha</button></section><section className="panel"><div className="panel-head"><div><h2>Dados da empresa</h2><p>Serão utilizados automaticamente nos documentos.</p></div></div>{[['company_name','Nome da empresa'],['document','CNPJ / CPF'],['phone','Telefone'],['whatsapp','WhatsApp'],['address','Endereço']].map(([k,l])=><label key={k}>{l}<input value={company[k]||''} onChange={e=>setCompany({...company,[k]:e.target.value})}/></label>)}{message&&<div className={message.includes('sucesso')?'form-success':'form-error'}>{message}</div>}<button className="primary" onClick={save} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} Salvar dados</button></section></div></div>; }
+function SettingsPage({refresh}) {
+  const [company,setCompany]=useState({company_name:DEFAULT_COMPANY_NAME,document:'',phone:'',whatsapp:'',email:'',address:''});
+  const [profileName,setProfileName]=useState('');
+  const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [profileSaving,setProfileSaving]=useState(false); const [message,setMessage]=useState(''); const [profileMessage,setProfileMessage]=useState('');
+  useEffect(()=>{supabase.auth.getUser().then(async({data})=>{const {data:row}=await supabase.from('refrig_company').select('*').eq('owner_id',data.user.id).maybeSingle(); if(row)setCompany({...row,company_name:displayCompanyName(row.company_name)}); else setCompany(c=>({...c,email:data.user.email||''})); setProfileName(data.user.user_metadata?.full_name || DEFAULT_COMPANY_NAME); setLoading(false);});},[]);
+  async function saveProfile(){setProfileSaving(true);setProfileMessage('');const {error}=await supabase.auth.updateUser({data:{full_name:profileName.trim() || DEFAULT_COMPANY_NAME}});setProfileMessage(error?error.message:'Nome atualizado com sucesso.');setProfileSaving(false);if(!error)refresh();}
+  async function save(){setSaving(true);setMessage('');const {data}=await supabase.auth.getUser();const {error}=await supabase.from('refrig_company').upsert({...company,company_name:company.company_name||DEFAULT_COMPANY_NAME,owner_id:data.user.id},{onConflict:'owner_id'});setMessage(error?error.message:'Dados salvos com sucesso.');setSaving(false);if(!error)refresh();}
+  if(loading)return <div className="content"><Loading/> </div>;
+  return <div className="content"><PageHead title="Configurações" sub="Gerencie os dados que serão usados nos próximos orçamentos e PDFs."/><div className="settings-grid"><section className="panel"><div className="panel-head"><div><h2>Perfil</h2><p>Dados do acesso atual.</p></div></div><label>Nome do responsável<input value={profileName} onChange={e=>setProfileName(e.target.value)} placeholder="Nome do responsável"/></label><label>E-mail<input value={company.email} readOnly/></label>{profileMessage&&<div className={profileMessage.includes('sucesso')?'form-success':'form-error'}>{profileMessage}</div>}<button className="primary" onClick={saveProfile} disabled={profileSaving}>{profileSaving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} Salvar nome</button><button className="secondary" onClick={()=>supabase.auth.resetPasswordForEmail(company.email,{redirectTo:window.location.origin})}>Redefinir senha</button></section><section className="panel"><div className="panel-head"><div><h2>Dados da empresa</h2><p>Por enquanto, use Daniel Alves. Quando a marca estiver pronta, basta trocar aqui.</p></div></div>{[['company_name','Nome da empresa / marca'],['document','CNPJ / CPF (opcional)'],['phone','Telefone'],['whatsapp','WhatsApp'],['address','Endereço']].map(([k,l])=><label key={k}>{l}<input value={company[k]||''} onChange={e=>setCompany({...company,[k]:e.target.value})}/></label>)}{message&&<div className={message.includes('sucesso')?'form-success':'form-error'}>{message}</div>}<button className="primary" onClick={save} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} Salvar dados</button></section></div></div>;
+}
 
 createRoot(document.getElementById('root')).render(<App/>);
