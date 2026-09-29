@@ -32,14 +32,26 @@ const statusLabel = {
 };
 
 const categories = [
-  'Limpar',
-  'Fazer manutenção',
-  'Colocar gás',
-  'Instalar',
-  'Retirar / mudar',
-  'Consertar',
-  'Avaliar problema'
+  'Limpeza e Higienização',
+  'Manutenção',
+  'Gás Refrigerante',
+  'Instalação',
+  'Retirada / Mudança',
+  'Reparos',
+  'Visita Técnica'
 ];
+
+const categoryLabels = {
+  'Limpeza e Higienização': 'Limpar',
+  'Manutenção': 'Fazer manutenção',
+  'Gás Refrigerante': 'Colocar gás',
+  'Instalação': 'Instalar',
+  'Retirada / Mudança': 'Retirar / mudar',
+  'Reparos': 'Consertar',
+  'Visita Técnica': 'Avaliar problema'
+};
+
+const categoryLabel = (category) => categoryLabels[category] || category;
 
 const money = (v = 0) =>
   Number(v || 0).toLocaleString('pt-BR', {
@@ -1205,7 +1217,7 @@ function NewQuote({ go, refresh, quote }) {
                     onChange={e => chooseCatalog(i, e.target.value)}>
                     <option value="">Selecione um serviço pronto...</option>
                     {categories.map(category => (
-                      <optgroup key={category} label={category}>
+                      <optgroup key={category} label={categoryLabel(category)}>
                         {catalog.filter(s => s.category === category).map(s => (
                           <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
@@ -2099,7 +2111,7 @@ function ServiceCatalog({ refresh }) {
           <button key={category}
             className={filter === category ? 'selected' : ''}
             onClick={() => setFilter(category)}>
-            {category}
+            {category === 'Todos' ? 'Todos' : categoryLabel(category)}
           </button>
         ))}
       </div>
@@ -2112,7 +2124,7 @@ function ServiceCatalog({ refresh }) {
 
               <div className="catalog-card-top">
                 <div>
-                  <span className="catalog-category">{service.category}</span>
+                  <span className="catalog-category">{categoryLabel(service.category)}</span>
                   <h3>{service.name}</h3>
                 </div>
                 <strong>{money(service.default_price)}</strong>
@@ -2241,7 +2253,7 @@ function ServiceModal({ service, onClose, onSaved }) {
           <label>Categoria*
             <select value={form.category}
               onChange={e => setForm({ ...form, category: e.target.value })}>
-              {categories.map(c => <option key={c}>{c}</option>)}
+              {categories.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
             </select>
           </label>
 
