@@ -416,6 +416,43 @@ header{
 }
 
 .tablepanel{overflow:hidden}
+.finance-mobile-list{display:none}
+
+.finance-mobile-card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:13px;
+  padding:14px;
+  display:grid;
+  gap:7px;
+  cursor:pointer;
+  box-shadow:0 1px 2px #00000008;
+}
+
+.finance-mobile-card>div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.finance-mobile-card h3{
+  margin:0;
+  font-size:14px;
+  color:#172033;
+}
+
+.finance-mobile-card p{
+  margin:0;
+  color:var(--muted);
+  font-size:11px;
+}
+
+.finance-mobile-card>strong{
+  font-size:16px;
+  color:#172033;
+}
+
 
 .table-title{
   padding:19px 20px;
@@ -1351,6 +1388,12 @@ tbody tr:hover{background:#fafbfc}
 
   .finance-page .tablepanel>table{
     display:none;
+  }
+
+  .finance-page .finance-mobile-list{
+    display:grid;
+    gap:9px;
+    padding:0 16px 16px;
   }
 
   .attention{
