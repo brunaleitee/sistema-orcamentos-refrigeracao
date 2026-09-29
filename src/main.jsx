@@ -257,7 +257,7 @@ function NewQuote({ go, quote = null }) {
       setEquipment(eqs.length ? eqs : [{ type:'', brand:'', model:'', capacity:'', observation:'' }]);
       setItems((data || []).map(row => ({
         id: row.id, equipmentIndex:indexById.get(row.equipment_id) ?? 0, service_name:row.service_name || '',
-        service_catalog_id: catalog.find(s=>s.name===row.service_name)?.id || '', service_description:row.service_description || '', included:'', quantity:Number(row.quantity || 1), original:String(row.unit_original_value ?? ''),
+        service_catalog_id: catalog.find(s=>s.name===row.service_name)?.id || '', service_description:row.service_description || '', included:row.included || '', quantity:Number(row.quantity || 1), original:String(row.unit_original_value ?? ''),
         discount:String(row.unit_discount ?? ''), final:String(row.unit_final_value ?? '')
       })));
       setLoadingEdit(false);
@@ -310,7 +310,7 @@ function NewQuote({ go, quote = null }) {
         const { data: c, error: ce } = await supabase.from('refrig_clients').insert({ owner_id, ...client }).select().single(); if (ce) throw ce;
         const { data: eq, error: ee } = await supabase.from('refrig_equipment').insert(equipment.map(e => ({ owner_id, client_id:c.id, equipment_type:e.type, brand:e.brand, model:e.model, capacity:e.capacity, observation:e.observation }))).select().order('created_at'); if (ee) throw ee;
         const { data: q, error: qe } = await supabase.from('refrig_quotes').insert({ owner_id, client_id:c.id, notes:client.notes, total_original:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.original||0),0), total_discount:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.discount||0),0), total_final:total }).select().single(); if (qe) throw qe;
-        const rows = items.map(i => ({ quote_id:q.id, equipment_id:eq[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
+        const rows = items.map(i => ({ quote_id:q.id, equipment_id:eq[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, included:i.included || '', quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
         const { error: ie } = await supabase.from('refrig_quote_items').insert(rows); if (ie) throw ie;
       } else {
         const { error: ce } = await supabase.from('refrig_clients').update(client).eq('id', quote.client_id); if (ce) throw ce;
@@ -328,7 +328,7 @@ function NewQuote({ go, quote = null }) {
         }
         for (const id of existingIds) if (!keepIds.has(id)) { const { error } = await supabase.from('refrig_equipment').delete().eq('id',id); if (error) throw error; }
         const { error: qe } = await supabase.from('refrig_quotes').update({ notes:client.notes, total_original:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.original||0),0), total_discount:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.discount||0),0), total_final:total }).eq('id',quote.id); if (qe) throw qe;
-        const rows = items.map(i => ({ quote_id:quote.id, equipment_id:equipment[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
+        const rows = items.map(i => ({ quote_id:quote.id, equipment_id:equipment[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, included:i.included || '', quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
         const { error: ie } = await supabase.from('refrig_quote_items').insert(rows); if (ie) throw ie;
       }
       go('quotes');
@@ -576,7 +576,27 @@ async function generateQuotePdf({ quote, client, items, company, download = true
     doc.setFont('helvetica','bold');
     doc.setFontSize(6.4);
     doc.text(pdfMoney(subtotal), W - margin, y, { align:'right' });
-    y += 5; 
+    y += 5;
+
+    const includedText = String(group.items.find(i => i.included)?.included || '').trim();
+    if (includedText) {
+      const includedLines = includedText.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
+      const boxH = Math.max(8, 5 + includedLines.length * 3.1);
+      doc.setFillColor(247,250,253);
+      doc.setDrawColor(224,232,241);
+      doc.roundedRect(margin, y, contentW, boxH, 1.2, 1.2, 'FD');
+      doc.setTextColor(...blue);
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(5.9);
+      doc.text('INCLUSO NO SERVIÇO', margin + 4, y + 4);
+      doc.setTextColor(...muted);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(5.4);
+      includedLines.forEach((line, idx) => {
+        doc.text(`• ${pdfText(line)}`, margin + 4, y + 7.2 + idx * 3.1, { maxWidth: contentW - 8 });
+      });
+      y += boxH + 3.5;
+    }
   });
 
   // Total
@@ -651,10 +671,19 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
     setSaving(false);
   }
 
+  async function getItemsForPdf(){
+    const {data:userData}=await supabase.auth.getUser();
+    const ownerId=userData?.user?.id;
+    if(!ownerId) return items;
+    const {data:catalogRows}=await supabase.from('refrig_service_catalog').select('name,included').eq('owner_id',ownerId);
+    const byName=new Map((catalogRows||[]).map(row=>[row.name,row.included||'']));
+    return items.map(item=>({ ...item, included:item.included || byName.get(item.service_name) || '' }));
+  }
+
   async function handlePdf(){
     if(pdfLoading)return;
     setPdfLoading(true);
-    try{await generateQuotePdf({quote:{...quote,status},client,items,company});}
+    try{const pdfItems=await getItemsForPdf(); await generateQuotePdf({quote:{...quote,status},client,items:pdfItems,company});}
     catch(error){console.error(error);alert('Não foi possível gerar o PDF. Verifique sua conexão e tente novamente.');}
     finally{setPdfLoading(false);setActionsOpen(false);}
   }
@@ -667,7 +696,8 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
     const message=`Olá, ${client.name || 'tudo bem'}! Tudo bem?\n\nSegue em anexo o orçamento ${quoteNo}, referente aos serviços solicitados, no valor total de ${money(quote.total_final)}.\n\nO orçamento é válido por ${validity} dias. Em caso de dúvidas ou para aprovação, fico à disposição.\n\n${displayCompanyName(company.company_name)} | Refrigeração`;
     setActionsOpen(false);
     try{
-      const {blob,fileName}=await generateQuotePdf({quote:{...quote,status},client,items,company,download:false});
+      const pdfItems=await getItemsForPdf();
+      const {blob,fileName}=await generateQuotePdf({quote:{...quote,status},client,items:pdfItems,company,download:false});
       const file=new File([blob],fileName,{type:'application/pdf'});
       if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
         await navigator.share({
