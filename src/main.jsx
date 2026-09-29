@@ -29,60 +29,6 @@ const money = (v = 0) => Number(v || 0).toLocaleString('pt-BR', { style: 'curren
 const dateBR = (v) => v ? new Date(`${v}T12:00:00`).toLocaleDateString('pt-BR') : '—';
 
 
-const PRINT_CSS = `
-@page { size: A4 portrait; margin: 0; }
-@media print {
-  html, body, #root { margin:0 !important; padding:0 !important; width:210mm !important; min-height:297mm !important; background:#fff !important; }
-  body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; overflow:hidden !important; }
-  .app { display:block !important; min-height:0 !important; }
-  .app > .sidebar, .app > .overlay, .main > header, .quote-screen { display:none !important; }
-  .main { margin:0 !important; width:210mm !important; min-height:0 !important; }
-  .print-wrap { display:block !important; width:210mm !important; height:297mm !important; margin:0 !important; padding:0 !important; }
-  .print-document { display:block !important; width:210mm !important; height:297mm !important; box-sizing:border-box !important; overflow:hidden !important; margin:0 !important; padding:8mm 10mm 7mm !important; background:#fff !important; color:#152238 !important; font-family:Arial, Helvetica, sans-serif !important; font-size:8px !important; line-height:1.25 !important; }
-  .pdf-header { display:flex !important; justify-content:space-between !important; align-items:flex-start !important; padding-bottom:5mm !important; border-bottom:1px solid #dbe4ef !important; }
-  .pdf-brand { display:flex !important; align-items:center !important; gap:7px !important; }
-  .pdf-logo { width:27px !important; height:27px !important; border-radius:7px !important; background:#0e4d8d !important; color:#fff !important; display:flex !important; align-items:center !important; justify-content:center !important; font-size:14px !important; }
-  .pdf-brand strong { display:block !important; font-size:16px !important; line-height:1 !important; }
-  .pdf-brand span { display:block !important; color:#5f7894 !important; font-size:7px !important; letter-spacing:.9px !important; margin-top:3px !important; }
-  .pdf-meta { text-align:right !important; display:flex !important; flex-direction:column !important; gap:2px !important; color:#5f7894 !important; }
-  .pdf-meta strong { color:#0e4d8d !important; font-size:9px !important; }
-  .pdf-client { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10mm !important; padding:4mm 0 3mm !important; }
-  .pdf-client > div { display:flex !important; flex-direction:column !important; gap:1px !important; }
-  .pdf-client b, .pdf-section h2, .pdf-conditions h2 { color:#0e4d8d !important; font-size:8px !important; text-transform:uppercase !important; letter-spacing:.35px !important; margin:0 0 2px !important; }
-  .pdf-client strong { font-size:9px !important; color:#152238 !important; }
-  .pdf-client span { color:#50657d !important; }
-  .pdf-company { border-left:2px solid #dbeafe !important; padding-left:5mm !important; }
-  .pdf-section { margin-top:2mm !important; break-inside:avoid !important; }
-  .pdf-section h2 { margin-bottom:2mm !important; }
-  .pdf-table { width:100% !important; border-collapse:collapse !important; table-layout:fixed !important; }
-  .pdf-table th { background:#eef4fa !important; color:#41566f !important; font-weight:700 !important; text-align:left !important; border:1px solid #d9e2ec !important; padding:2px 3px !important; font-size:6.8px !important; }
-  .pdf-table td { border:1px solid #d9e2ec !important; padding:2px 3px !important; color:#25384d !important; font-size:6.9px !important; vertical-align:middle !important; overflow-wrap:anywhere !important; }
-  .equipment-table th:nth-child(1), .equipment-table td:nth-child(1) { width:5% !important; text-align:center !important; }
-  .equipment-table th:nth-child(2), .equipment-table td:nth-child(2) { width:19% !important; }
-  .equipment-table th:nth-child(3), .equipment-table td:nth-child(3) { width:25% !important; }
-  .equipment-table th:nth-child(4), .equipment-table td:nth-child(4) { width:18% !important; }
-  .equipment-table th:nth-child(5), .equipment-table td:nth-child(5) { width:33% !important; }
-  .service-table th:nth-child(1), .service-table td:nth-child(1) { width:31% !important; }
-  .service-table th:nth-child(2), .service-table td:nth-child(2) { width:7% !important; text-align:center !important; }
-  .service-table th:nth-child(3), .service-table td:nth-child(3) { width:15% !important; text-align:right !important; }
-  .service-table th:nth-child(4), .service-table td:nth-child(4) { width:14% !important; text-align:right !important; }
-  .service-table th:nth-child(5), .service-table td:nth-child(5) { width:16% !important; text-align:right !important; }
-  .service-table th:nth-child(6), .service-table td:nth-child(6) { width:17% !important; text-align:right !important; font-weight:700 !important; }
-  .pdf-service { margin-bottom:2.5mm !important; break-inside:avoid !important; }
-  .pdf-service h3 { font-size:8px !important; color:#152238 !important; margin:0 0 1.5mm !important; }
-  .pdf-subtotal { text-align:right !important; padding-top:1mm !important; color:#50657d !important; font-size:7px !important; }
-  .pdf-subtotal strong { color:#152238 !important; margin-left:10px !important; font-size:8px !important; }
-  .pdf-total { display:flex !important; align-items:center !important; justify-content:space-between !important; background:#e8f2ff !important; border:1px solid #cfe2fb !important; border-radius:5px !important; padding:4mm 5mm !important; margin-top:3mm !important; break-inside:avoid !important; }
-  .pdf-total span { color:#0e4d8d !important; font-size:8px !important; font-weight:800 !important; letter-spacing:.35px !important; }
-  .pdf-total strong { color:#0e4d8d !important; font-size:15px !important; }
-  .pdf-bottom { display:grid !important; grid-template-columns:1fr 45mm !important; gap:8mm !important; align-items:end !important; margin-top:4mm !important; break-inside:avoid !important; }
-  .pdf-conditions ul { margin:1mm 0 0 4mm !important; padding:0 !important; color:#50657d !important; }
-  .pdf-conditions li { margin:0 0 1px !important; }
-  .pdf-thanks { text-align:center !important; color:#0e4d8d !important; font-family:cursive !important; font-size:13px !important; line-height:1.1 !important; transform:rotate(-3deg) !important; }
-  .pdf-notes { margin-top:3mm !important; padding-top:2mm !important; border-top:1px solid #dbe4ef !important; color:#50657d !important; font-size:7px !important; }
-}
-@media screen { .print-wrap { display:none; } }
-`;
 
 function Badge({ status }) {
   const label = statusLabel[status] || status;
@@ -166,7 +112,7 @@ function App() {
   if (checking) return <Loading label="Conectando..." />;
   if (!session) return <Auth onAuth={setSession} />;
 
-  return <><style>{PRINT_CSS}</style><div className="app">
+  return <div className="app">
     <aside className={`sidebar ${mobile ? 'open' : ''}`}>
       <div className="brand"><div className="brandmark">F</div><div><strong>Frios&Clima</strong><small>Refrigeração</small></div><button className="close" onClick={() => setMobile(false)}><X size={20}/></button></div>
       <div className="profile"><div className="avatar">FC</div><div><strong>{session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Administrador'}</strong><small>Administrador</small></div></div>
@@ -178,7 +124,7 @@ function App() {
       <header><button className="menu" onClick={() => setMobile(true)}><Menu/></button><div className="header-search"><Search size={18}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar orçamento, cliente..."/></div><div className="header-user"><div className="avatar small">FC</div><span>Frios&Clima</span></div></header>
       {selected ? <QuoteDetail quote={selected} back={() => setSelected(null)} onChanged={refreshData} /> : page === 'newQuote' ? <NewQuote go={go} /> : page === 'home' ? <Home go={go} setSelected={setSelected} refresh={refresh} /> : page === 'quotes' ? <Quotes search={search} setSelected={setSelected} go={go} refresh={refresh} /> : page === 'finance' ? <Finance setSelected={setSelected} refresh={refresh} /> : page === 'tickets' ? <Tickets setSelected={setSelected} refresh={refresh} /> : <SettingsPage refresh={refreshData} />}
     </main>
-  </div></>;
+  </div>;
 }
 
 function PageHead({ title, sub, action }) { return <div className="pagehead"><div><h1>{title}</h1><p>{sub}</p></div>{action}</div>; }
@@ -259,11 +205,253 @@ function NewQuote({ go }) {
   </div>;
 }
 
+async function loadPdfLibraries() {
+  if (window.jspdf?.jsPDF?.API?.autoTable) return;
+
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener('load', resolve, { once: true });
+      existing.addEventListener('error', reject, { once: true });
+      if (window.jspdf?.jsPDF?.API?.autoTable) resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js');
+}
+
+const pdfText = (value) => String(value ?? '—').replace(/\s+/g, ' ').trim() || '—';
+const pdfMoney = (value) => money(Number(value || 0));
+
+async function generateQuotePdf({ quote, client, items, company }) {
+  await loadPdfLibraries();
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  const W = 210;
+  const margin = 12;
+  const contentW = W - margin * 2;
+  const blue = [14, 77, 141];
+  const dark = [21, 34, 56];
+  const muted = [80, 101, 125];
+  const line = [217, 226, 236];
+  const lightBlue = [232, 242, 255];
+
+  const issueDate = quote.issue_date || quote.created_at?.slice(0, 10);
+  const validity = quote.validity_days || 7;
+  const companyName = pdfText(company?.company_name || 'Frios&Clima');
+  const total = Number(quote.total_final || 0);
+
+  // Header
+  doc.setFillColor(...blue);
+  doc.roundedRect(margin, 11, 10, 10, 2, 2, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('✦', margin + 5, 17.5, { align: 'center' });
+
+  doc.setTextColor(...dark);
+  doc.setFontSize(13);
+  doc.text(companyName, margin + 14, 16);
+  doc.setFontSize(5.5);
+  doc.setTextColor(...muted);
+  doc.text('REFRIGERAÇÃO', margin + 14, 20);
+
+  doc.setTextColor(...blue);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`ORÇAMENTO Nº ${String(quote.quote_number).padStart(4,'0')}`, W - margin, 14.5, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...muted);
+  doc.setFontSize(6.5);
+  doc.text(`Data: ${dateBR(issueDate)}`, W - margin, 18); 
+  doc.text(`Validade: ${validity} dias`, W - margin, 21); 
+
+  doc.setDrawColor(...line);
+  doc.line(margin, 25, W - margin, 25);
+
+  // Client / contact
+  doc.setTextColor(...blue);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(6.5);
+  doc.text('CLIENTE', margin, 31);
+  doc.text('CONTATO', margin + contentW/2 + 3, 31);
+
+  doc.setTextColor(...dark);
+  doc.setFontSize(7.5);
+  doc.text(pdfText(client.name), margin, 35);
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(...muted);
+  doc.setFontSize(6.5);
+  const clientContact = client.phone || client.whatsapp;
+  if (clientContact) doc.text(pdfText(clientContact), margin, 39);
+  if (client.address) doc.text(pdfText(client.address), margin, 43);
+  if (client.email) doc.text(pdfText(client.email), margin, 47);
+
+  doc.setDrawColor(219,234,254);
+  doc.setLineWidth(0.7);
+  doc.line(margin + contentW/2, 31, margin + contentW/2, 47);
+  doc.setLineWidth(0.2);
+  let cy = 35;
+  if (company?.phone) { doc.text(pdfText(company.phone), margin + contentW/2 + 4, cy); cy += 4; }
+  if (company?.whatsapp) { doc.text(pdfText(company.whatsapp), margin + contentW/2 + 4, cy); cy += 4; }
+  if (company?.document) { doc.text(pdfText(company.document), margin + contentW/2 + 4, cy); }
+
+  let y = 52;
+  const sectionTitle = (title) => {
+    doc.setTextColor(...blue);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6.5);
+    doc.text(title.toUpperCase(), margin, y);
+    y += 3;
+  };
+
+  const equipment = [];
+  const seen = new Set();
+  items.forEach(item => {
+    const e = item.refrig_equipment || {};
+    if (!seen.has(item.equipment_id)) {
+      seen.add(item.equipment_id);
+      equipment.push([
+        String(equipment.length + 1).padStart(2,'0'),
+        pdfText(e.equipment_type),
+        [e.brand,e.model].filter(Boolean).join(' / ') || '—',
+        pdfText(e.capacity),
+        pdfText(e.observation)
+      ]);
+    }
+  });
+
+  if (equipment.length) {
+    sectionTitle('Equipamentos');
+    doc.autoTable({
+      startY: y,
+      head: [['#','TIPO','MARCA / MODELO','CAPACIDADE','OBSERVAÇÃO']],
+      body: equipment,
+      margin: { left: margin, right: margin },
+      tableWidth: contentW,
+      theme: 'grid',
+      styles: { font:'helvetica', fontSize:5.7, cellPadding:1.15, textColor:dark, lineColor:line, lineWidth:.2, overflow:'linebreak', valign:'middle' },
+      headStyles: { fillColor:[238,244,250], textColor:[65,86,111], fontStyle:'bold', fontSize:5.6 },
+      columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:34}, 2:{cellWidth:44}, 3:{cellWidth:31}, 4:{cellWidth:63} },
+      didDrawPage: () => {}
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  sectionTitle('Serviços');
+  const groups = [];
+  items.forEach(item => {
+    const key = item.service_name || 'Serviço';
+    let group = groups.find(g => g.name === key);
+    if (!group) { group = { name:key, items:[] }; groups.push(group); }
+    group.items.push(item);
+  });
+
+  groups.forEach((group, index) => {
+    doc.setTextColor(...dark);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6.5);
+    doc.text(`${index + 1}. ${pdfText(group.name)}`, margin, y + 1);
+    y += 3;
+
+    const rows = group.items.map(i => {
+      const e = i.refrig_equipment || {};
+      const original = Number(i.unit_original_value || 0);
+      const discount = Number(i.unit_discount || 0);
+      const final = Number(i.unit_final_value || 0);
+      const qty = Number(i.quantity || 1);
+      return [
+        [e.equipment_type, e.capacity].filter(Boolean).join(' - ') || 'Equipamento',
+        String(qty),
+        pdfMoney(original),
+        pdfMoney(discount),
+        pdfMoney(final),
+        pdfMoney(final * qty)
+      ];
+    });
+
+    doc.autoTable({
+      startY: y,
+      head: [['EQUIPAMENTO','QTD.','VALOR ORIGINAL','DESCONTO','VALOR FINAL','TOTAL']],
+      body: rows,
+      margin: { left: margin, right: margin },
+      tableWidth: contentW,
+      theme: 'grid',
+      styles: { font:'helvetica', fontSize:5.45, cellPadding:1.05, textColor:dark, lineColor:line, lineWidth:.2, overflow:'linebreak', valign:'middle' },
+      headStyles: { fillColor:[238,244,250], textColor:[65,86,111], fontStyle:'bold', fontSize:5.25 },
+      columnStyles: { 0:{cellWidth:57}, 1:{cellWidth:10,halign:'center'}, 2:{cellWidth:30,halign:'right'}, 3:{cellWidth:27,halign:'right'}, 4:{cellWidth:29,halign:'right'}, 5:{cellWidth:31,halign:'right',fontStyle:'bold'} },
+      didDrawPage: () => {}
+    });
+    y = doc.lastAutoTable.finalY + 2.5;
+    const subtotal = group.items.reduce((sum,i) => sum + Number(i.quantity || 1) * Number(i.unit_final_value || 0), 0);
+    doc.setTextColor(...muted);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(5.8);
+    doc.text('Subtotal do serviço', W - margin - 28, y, { align:'right' });
+    doc.setTextColor(...dark);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6.4);
+    doc.text(pdfMoney(subtotal), W - margin, y, { align:'right' });
+    y += 4;
+  });
+
+  // Total
+  doc.setFillColor(...lightBlue);
+  doc.setDrawColor(207,226,251);
+  doc.roundedRect(margin, y, contentW, 12, 1.5, 1.5, 'FD');
+  doc.setTextColor(...blue);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(6.5);
+  doc.text('VALOR TOTAL DO ORÇAMENTO', margin + 5, y + 7);
+  doc.setFontSize(12);
+  doc.text(pdfMoney(total), W - margin - 5, y + 7.5, { align:'right' });
+  y += 17;
+
+  // Conditions and signature
+  doc.setTextColor(...blue);
+  doc.setFontSize(6.5);
+  doc.text('CONDIÇÕES', margin, y);
+  doc.setTextColor(...muted);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(5.8);
+  const conditions = [
+    'Orçamento referente exclusivamente aos serviços descritos.',
+    'Peças, reparos e materiais adicionais, caso necessários, serão cobrados à parte.',
+    `Validade do orçamento: ${validity} dias.`,
+    'Forma de pagamento: a combinar.'
+  ];
+  conditions.forEach((text, i) => doc.text(`• ${text}`, margin + 2, y + 4 + i * 3));
+  if (quote.notes) {
+    doc.setFont('helvetica','bold');
+    doc.text('Observações:', margin, y + 18);
+    doc.setFont('helvetica','normal');
+    doc.text(pdfText(quote.notes), margin + 20, y + 18, { maxWidth: 105 });
+  }
+  doc.setTextColor(...blue);
+  doc.setFont('times','italic');
+  doc.setFontSize(9);
+  doc.text('Obrigado', W - 42, y + 8, { align:'center' });
+  doc.text('pela confiança!', W - 42, y + 12, { align:'center' });
+
+  // Critical: never add a page. The document is deliberately composed inside one A4 page.
+  doc.save(`ORC-${String(quote.quote_number).padStart(4,'0')}.pdf`);
+}
+
 function QuoteDetail({ quote, back, onChanged }) {
   const [saving,setSaving]=useState(false);
   const [status,setStatus]=useState(quote.status);
   const [items,setItems]=useState([]);
   const [company,setCompany]=useState({company_name:'Frios&Clima',document:'',phone:'',whatsapp:'',email:'',address:''});
+  const [pdfLoading,setPdfLoading]=useState(false);
 
   useEffect(()=>{
     let alive=true;
@@ -286,91 +474,33 @@ function QuoteDetail({ quote, back, onChanged }) {
     setSaving(false);
   }
 
+  async function handlePdf(){
+    if (pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      await generateQuotePdf({ quote:{...quote,status}, client, items, company });
+    } catch (error) {
+      console.error(error);
+      alert('Não foi possível gerar o PDF. Verifique sua conexão e tente novamente.');
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   const client=quote.refrig_clients||{};
 
-  return <>
-    <div className="quote-screen content">
-      <button className="back" onClick={back}><ArrowLeft size={18}/> Voltar para orçamentos</button>
-      <PageHead title={`ORC-${String(quote.quote_number).padStart(4,'0')}`} sub="Detalhes do orçamento" action={<div className="actions"><button className="secondary"><Pencil size={17}/> Editar</button><button className="secondary" onClick={()=>window.print()}><Download size={17}/> PDF</button><button className="primary"><MessageCircle size={17}/> WhatsApp</button></div>}/>
-      <div className="detail-grid">
-        <section className="panel"><div className="panel-head"><div><h2>Cliente</h2><p>Dados do solicitante</p></div><Badge status={status}/></div><div className="info-grid"><Info icon={UserRound} label="Nome" value={client.name||'—'}/><Info icon={Phone} label="Telefone" value={client.phone||'—'}/><Info icon={MapPin} label="Endereço" value={client.address||'—'}/><Info icon={Mail} label="E-mail" value={client.email||'—'}/></div></section>
-        <section className="panel"><div className="panel-head"><div><h2>Serviços</h2><p>Composição do orçamento</p></div></div>{items.map(i=><div className="service-line" key={i.id}><div><strong>{i.service_name}</strong><span>{i.quantity} × {i.refrig_equipment?.equipment_type || 'Equipamento'} {i.refrig_equipment?.capacity || ''}</span></div><strong>{money(Number(i.unit_final_value||0)*Number(i.quantity||1))}</strong></div>)}<div className="total"><span>Total</span><strong>{money(quote.total_final)}</strong></div></section>
-      </div>
-      <section className="panel"><div className="panel-head"><div><h2>Status</h2><p>Atualize o andamento do orçamento.</p></div></div><div className="status-actions">{[['aguardando_resposta','Aguardando resposta'],['aprovado','Aprovar'],['recusado','Recusar'],['em_andamento','Em andamento'],['concluido','Concluir']].map(([id,label])=><button key={id} className={status===id?'selected':''} disabled={saving} onClick={()=>changeStatus(id)}>{label}</button>)}</div></section>
-      {quote.notes && <section className="panel"><h2>Observações</h2><p className="note">{quote.notes}</p></section>}
+  return <div className="content quote-screen">
+    <button className="back" onClick={back}><ArrowLeft size={18}/> Voltar para orçamentos</button>
+    <PageHead title={`ORC-${String(quote.quote_number).padStart(4,'0')}`} sub="Detalhes do orçamento" action={<div className="actions"><button className="secondary"><Pencil size={17}/> Editar</button><button className="secondary" onClick={handlePdf} disabled={pdfLoading}>{pdfLoading?<LoaderCircle className="spin" size={17}/>:<Download size={17}/>} {pdfLoading?'Gerando PDF…':'PDF'}</button><button className="primary"><MessageCircle size={17}/> WhatsApp</button></div>}/>
+    <div className="detail-grid">
+      <section className="panel"><div className="panel-head"><div><h2>Cliente</h2><p>Dados do solicitante</p></div><Badge status={status}/></div><div className="info-grid"><Info icon={UserRound} label="Nome" value={client.name||'—'}/><Info icon={Phone} label="Telefone" value={client.phone||'—'}/><Info icon={MapPin} label="Endereço" value={client.address||'—'}/><Info icon={Mail} label="E-mail" value={client.email||'—'}/></div></section>
+      <section className="panel"><div className="panel-head"><div><h2>Serviços</h2><p>Composição do orçamento</p></div></div>{items.map(i=><div className="service-line" key={i.id}><div><strong>{i.service_name}</strong><span>{i.quantity} × {i.refrig_equipment?.equipment_type || 'Equipamento'} {i.refrig_equipment?.capacity || ''}</span></div><strong>{money(Number(i.unit_final_value||0)*Number(i.quantity||1))}</strong></div>)}<div className="total"><span>Total</span><strong>{money(quote.total_final)}</strong></div></section>
     </div>
-    <div className="print-wrap">
-      <PrintQuote quote={{...quote,status}} client={client} items={items} company={company}/>
-    </div>
-  </>;
-}
-
-function PrintQuote({quote,client,items,company}) {
-  const groups=[];
-  items.forEach(item=>{
-    const key=item.service_name||'Serviço';
-    let group=groups.find(g=>g.name===key);
-    if(!group){group={name:key,items:[]};groups.push(group);}
-    group.items.push(item);
-  });
-  const equipment=[];
-  const seen=new Set();
-  items.forEach(item=>{
-    const e=item.refrig_equipment||{};
-    if(!seen.has(item.equipment_id)){
-      seen.add(item.equipment_id);
-      equipment.push({
-        number:equipment.length+1,
-        type:e.equipment_type||'—',
-        model:[e.brand,e.model].filter(Boolean).join(' / ')||'—',
-        capacity:e.capacity||'—',
-        observation:e.observation||'—'
-      });
-    }
-  });
-  const issueDate=quote.issue_date || quote.created_at?.slice(0,10);
-  const validity=quote.validity_days || 7;
-  const companyName=company.company_name || 'Frios&Clima';
-  const total=Number(quote.total_final||0);
-
-  return <div className="print-document">
-    <div className="pdf-header">
-      <div className="pdf-brand"><div className="pdf-logo">✦</div><div><strong>{companyName}</strong><span>REFRIGERAÇÃO</span></div></div>
-      <div className="pdf-meta"><strong>ORÇAMENTO Nº {String(quote.quote_number).padStart(4,'0')}</strong><span>Data: {dateBR(issueDate)}</span><span>Validade: {validity} dias</span></div>
-    </div>
-
-    <div className="pdf-client">
-      <div><b>Cliente</b><strong>{client.name||'—'}</strong><span>{client.phone||client.whatsapp||'—'}</span><span>{client.address||'—'}</span>{client.email&&<span>{client.email}</span>}</div>
-      <div className="pdf-company"><b>Contato</b>{company.phone&&<span>{company.phone}</span>}{company.whatsapp&&<span>{company.whatsapp}</span>}{company.document&&<span>{company.document}</span>}</div>
-    </div>
-
-    {equipment.length>0 && <section className="pdf-section"><h2>Equipamentos</h2><table className="pdf-table equipment-table"><thead><tr><th>#</th><th>Tipo</th><th>Marca / Modelo</th><th>Capacidade</th><th>Observação</th></tr></thead><tbody>{equipment.map(e=><tr key={`${e.number}-${e.type}`}><td>{String(e.number).padStart(2,'0')}</td><td>{e.type}</td><td>{e.model}</td><td>{e.capacity}</td><td>{e.observation}</td></tr>)}</tbody></table></section>}
-
-    <section className="pdf-section"><h2>Serviços</h2>{groups.map((group,index)=>{
-      const subtotal=group.items.reduce((sum,i)=>sum + Number(i.quantity||1)*Number(i.unit_final_value||0),0);
-      return <div className="pdf-service" key={group.name+index}>
-        <h3>{index+1}. {group.name}</h3>
-        <table className="pdf-table service-table"><thead><tr><th>Equipamento</th><th>Qtd.</th><th>Valor original</th><th>Desconto</th><th>Valor final</th><th>Total</th></tr></thead><tbody>{group.items.map(i=>{
-          const e=i.refrig_equipment||{};
-          const unitOriginal=Number(i.unit_original_value||0);
-          const unitDiscount=Number(i.unit_discount||0);
-          const unitFinal=Number(i.unit_final_value||0);
-          const qty=Number(i.quantity||1);
-          return <tr key={i.id}><td>{[e.equipment_type,e.capacity].filter(Boolean).join(' - ')||'Equipamento'}</td><td>{qty}</td><td>{money(unitOriginal)}</td><td>{money(unitDiscount)}</td><td>{money(unitFinal)}</td><td>{money(unitFinal*qty)}</td></tr>;
-        })}</tbody></table>
-        <div className="pdf-subtotal">Subtotal do serviço <strong>{money(subtotal)}</strong></div>
-      </div>;
-    })}</section>
-
-    <div className="pdf-total"><span>VALOR TOTAL DO ORÇAMENTO</span><strong>{money(total)}</strong></div>
-
-    <div className="pdf-bottom">
-      <div className="pdf-conditions"><h2>Condições</h2><ul><li>Orçamento referente exclusivamente aos serviços descritos.</li><li>Peças, reparos e materiais adicionais, caso necessários, serão cobrados à parte.</li><li>Validade do orçamento: {validity} dias.</li><li>Forma de pagamento: a combinar.</li></ul></div>
-      <div className="pdf-thanks">Obrigado<br/>pela confiança!</div>
-    </div>
-    {quote.notes && <div className="pdf-notes"><b>Observações:</b> {quote.notes}</div>}
+    <section className="panel"><div className="panel-head"><div><h2>Status</h2><p>Atualize o andamento do orçamento.</p></div></div><div className="status-actions">{[['aguardando_resposta','Aguardando resposta'],['aprovado','Aprovar'],['recusado','Recusar'],['em_andamento','Em andamento'],['concluido','Concluir']].map(([id,label])=><button key={id} className={status===id?'selected':''} disabled={saving} onClick={()=>changeStatus(id)}>{label}</button>)}</div></section>
+    {quote.notes && <section className="panel"><h2>Observações</h2><p className="note">{quote.notes}</p></section>}
   </div>;
 }
+
 function Info({icon:Icon,label,value}){return <div className="info"><Icon size={17}/><div><small>{label}</small><span>{value}</span></div></div>}
 
 function Finance({setSelected,refresh}) { const {quotes,loading}=useQuotes(refresh); const approved=quotes.filter(q=>['aprovado','em_andamento','concluido'].includes(q.status)); const total=approved.reduce((a,q)=>a+Number(q.total_final||0),0); return <div className="content"><PageHead title="Financeiro" sub="Acompanhe os valores dos serviços aprovados."/><div className="finance-cards"><div className="bigmetric"><span>Total aprovado</span><strong>{money(total)}</strong><small>Orçamentos aprovados, em andamento e concluídos.</small></div><div className="bigmetric"><span>Serviços aprovados</span><strong>{approved.length}</strong><small>Chamados vinculados ao orçamento.</small></div></div><div className="tablepanel"><div className="table-title"><div><h2>Movimentações</h2><p>Clique em um item para consultar o orçamento.</p></div></div>{loading?<Loading/>:<table><thead><tr><th>Orçamento</th><th>Cliente</th><th>Data</th><th>Status</th><th>Valor</th></tr></thead><tbody>{approved.map(q=><tr key={q.id} onClick={()=>setSelected(q)}><td><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong></td><td>{q.refrig_clients?.name||'Cliente'}</td><td>{dateBR(q.issue_date)}</td><td><Badge status={q.status}/></td><td><strong>{money(q.total_final)}</strong></td></tr>)}</tbody></table>}</div></div> }
