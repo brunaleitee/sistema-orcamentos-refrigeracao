@@ -272,8 +272,8 @@ async function generateQuotePdf({ quote, client, items, company }) {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...muted);
   doc.setFontSize(6.5);
-  doc.text(`Data: ${dateBR(issueDate)}`, W - margin, 18); 
-  doc.text(`Validade: ${validity} dias`, W - margin, 21); 
+  doc.text(`Data: ${dateBR(issueDate)}`, W - margin, 18, { align:'right' });
+  doc.text(`Validade: ${validity} dias`, W - margin, 21, { align:'right' });
 
   doc.setDrawColor(...line);
   doc.line(margin, 25, W - margin, 25);
@@ -301,9 +301,9 @@ async function generateQuotePdf({ quote, client, items, company }) {
   doc.line(margin + contentW/2, 31, margin + contentW/2, 47);
   doc.setLineWidth(0.2);
   let cy = 35;
-  if (company?.phone) { doc.text(pdfText(company.phone), margin + contentW/2 + 4, cy); cy += 4; }
-  if (company?.whatsapp) { doc.text(pdfText(company.whatsapp), margin + contentW/2 + 4, cy); cy += 4; }
-  if (company?.document) { doc.text(pdfText(company.document), margin + contentW/2 + 4, cy); }
+  if (company?.phone) { doc.text(pdfText(company.phone), margin + contentW/2 + 4, cy, { maxWidth: contentW/2 - 8 }); cy += 4; }
+  if (company?.whatsapp) { doc.text(pdfText(company.whatsapp), margin + contentW/2 + 4, cy, { maxWidth: contentW/2 - 8 }); cy += 4; }
+  if (company?.document) { doc.text(pdfText(company.document), margin + contentW/2 + 4, cy, { maxWidth: contentW/2 - 8 }); }
 
   let y = 52;
   const sectionTitle = (title) => {
