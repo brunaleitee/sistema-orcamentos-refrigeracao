@@ -31,3 +31,34 @@
   .quote-save-footer{display:grid;grid-template-columns:1fr;margin:18px 0 24px}
   .quote-save-footer button{width:100%}
 }
+
+/* Catálogo de serviços */
+.catalog-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.catalog-search{height:40px;min-width:260px;flex:1;max-width:420px;background:#fff;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 12px;color:#9aa2b1}
+.catalog-search input{border:0;outline:0;width:100%;font:12px Inter;color:#2f3848}
+.catalog-tabs{flex-wrap:wrap}
+.catalog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.catalog-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:17px;display:flex;flex-direction:column;min-height:250px}
+.catalog-card.inactive{opacity:.58}
+.catalog-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.catalog-category{font-size:9px;font-weight:800;color:#2563eb;background:#eff4ff;border-radius:999px;padding:5px 8px}
+.catalog-card h2{font-size:15px;margin:16px 0 5px;color:#172033}
+.catalog-card>p{font-size:11px;color:var(--muted);line-height:1.5;margin:0 0 13px}
+.catalog-included{background:#f8fafc;border-radius:10px;padding:11px;margin-top:auto}
+.catalog-included strong{display:block;font-size:10px;color:#344054;margin-bottom:7px}
+.catalog-included span,.service-included-preview span{display:block;white-space:pre-line;font-size:10px;line-height:1.6;color:#667085}
+.catalog-card-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.catalog-card-bottom>strong{font-size:14px;color:#172033}
+.catalog-card-bottom>div{display:flex;align-items:center;gap:4px}
+.catalog-delete{color:#b42318}
+.modal-backdrop{position:fixed;inset:0;background:#0b122666;z-index:60;display:grid;place-items:center;padding:20px}
+.modal-card{width:min(650px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:22px;box-shadow:0 24px 70px #1720332b}
+.modal-card label{display:block;font-size:11px;font-weight:600;color:#596274;margin-bottom:13px}
+.modal-card input,.modal-card select,.modal-card textarea{display:block;width:100%;margin-top:6px;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#2f3848;font:12px Inter;outline:0}
+.modal-card textarea{min-height:110px;resize:vertical}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:5px}
+.field-hint{display:block;margin-top:6px;font-size:9px;color:#8b94a3;font-weight:400;line-height:1.4}
+.service-included-preview{background:#f7f9fc;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-top:12px}
+.service-included-preview strong{display:block;font-size:10px;color:#344054;margin-bottom:5px}
+@media(max-width:1100px){.catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.catalog-toolbar{display:grid}.catalog-search{max-width:none;width:100%;min-width:0}.catalog-tabs{overflow:auto;flex-wrap:nowrap}.catalog-grid{grid-template-columns:1fr}.catalog-card{min-height:0}.modal-card{padding:17px}.modal-actions{display:grid;grid-template-columns:1fr}.modal-actions button{width:100%;justify-content:center}}
