@@ -1624,205 +1624,244 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
 
 async function generatePDF(quote, items) {
   try {
-    const { jsPDF } = await import('jspdf');
+  const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+    const W = 210;
+    const margin = 12;
+    const contentW = W - margin * 2;
+    const blue = [14, 77, 141];
+    const dark = [21, 34, 56];
+    const muted = [80, 101, 125];
+    const line = [217, 226, 236];
+    const lightBlue = [232, 242, 255];
 
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const issueDate = quote.issue_date || quote.created_at?.slice(0, 10);
+    const validity = quote.validity_days || 7;
+    const companyName = DEFAULT_COMPANY_NAME;
+    const fileClientName = String(client.name || 'Cliente').replace(/[^a-z0-9áéíóúãõçàâêôü _-]/gi, '').trim() || 'Cliente';
+    const total = Number(quote.total_final || 0);
+
     const client = quote.refrig_clients || {};
 
-    const navy = [24, 36, 54];
-    const gray = [105, 112, 122];
+  // Header — identidade limpa, sem box ao lado do nome
+  doc.setTextColor(...dark);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(companyName, margin, 16);
+  doc.setFontSize(5.5);
+  doc.setTextColor(...muted);
+  doc.text('REFRIGERAÇÃO', margin, 20);
 
-    doc.setTextColor(...navy);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.text(DEFAULT_COMPANY_NAME.toUpperCase(), 16, 20);
+  doc.setTextColor(...blue);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`ORÇAMENTO Nº ${String(quote.quote_number).padStart(4,'0')}`, W - margin, 14.5, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...muted);
+  doc.setFontSize(6.5);
+  doc.text(`Data: ${dateBR(issueDate)}`, W - margin, 18, { align:'right' });
+  doc.text(`Validade: ${validity} dias`, W - margin, 21, { align:'right' });
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(...gray);
-    doc.text(DEFAULT_COMPANY_SUBTITLE.toUpperCase(), 16, 26);
+  doc.setDrawColor(...line);
+  doc.line(margin, 25, W - margin, 25);
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...navy);
-    doc.text(`ORÇAMENTO Nº ${String(quote.quote_number).padStart(4, '0')}`, 194, 19, { align: 'right' });
+  // Cliente / contato — cada informação aparece uma única vez
+  const halfX = margin + contentW / 2 + 3;
+  const clientDocument = client?.document || client?.cpf_cnpj || client?.cpf || client?.cnpj || '';
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...gray);
-    doc.text(`Data: ${dateBR(quote.issue_date)}`, 194, 25, { align: 'right' });
-    doc.text('Validade: 7 dias', 194, 30, { align: 'right' });
+  doc.setTextColor(...blue);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(6.5);
+  doc.text('CLIENTE', margin, 31);
+  doc.text('CONTATO', halfX, 31);
 
-    doc.setDrawColor(220, 224, 229);
-    doc.line(16, 35, 194, 35);
+  // Divisor entre os dois blocos
+  doc.setDrawColor(219,234,254);
+  doc.setLineWidth(0.7);
+  doc.line(margin + contentW/2, 31, margin + contentW/2, 47);
+  doc.setLineWidth(0.2);
 
-    doc.setTextColor(...navy);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('CLIENTE', 16, 44);
-    doc.text('CONTATO', 108, 44);
+  // Dados do cliente: nome, CPF/CNPJ e endereço
+  doc.setTextColor(...dark);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(7.5);
+  doc.text(pdfText(client.name), margin, 35);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...gray);
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(...muted);
+  doc.setFontSize(6.5);
+  let clientY = 39;
+  if (clientDocument) {
+    doc.text(`CPF/CNPJ: ${pdfText(clientDocument)}`, margin, clientY, { maxWidth: contentW/2 - 8 });
+    clientY += 4;
+  }
+  if (client.address) {
+    doc.text(pdfText(client.address), margin, clientY, { maxWidth: contentW/2 - 8 });
+  }
 
-    doc.text(client.name || '—', 16, 51);
-    doc.text(client.document ? `CPF/CNPJ: ${client.document}` : 'CPF/CNPJ: —', 16, 57);
-    doc.text(client.address || 'Endereço: —', 16, 63);
+  // Dados de contato: telefone, WhatsApp e e-mail do cliente
+  const contactLines = [
+    client?.phone ? `Telefone: ${client.phone}` : '',
+    client?.whatsapp ? `WhatsApp: ${client.whatsapp}` : '',
+    client?.email ? `E-mail: ${client.email}` : ''
+  ].filter(Boolean);
 
-    doc.text(client.phone ? `Telefone: ${client.phone}` : 'Telefone: —', 108, 51);
-    doc.text(client.whatsapp ? `WhatsApp: ${client.whatsapp}` : 'WhatsApp: —', 108, 57);
-    doc.text(client.email || 'E-mail: —', 108, 63);
+  let cy = 35;
+  contactLines.slice(0, 3).forEach(value => {
+    doc.text(pdfText(value), halfX, cy, { maxWidth: contentW/2 - 8 });
+    cy += 4;
+  });
 
-    let y = 74;
+  let y = 52;
+  const sectionTitle = (title) => {
+    doc.setTextColor(...blue);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6.5);
+    doc.text(title.toUpperCase(), margin, y);
+    y += 3;
+  };
 
-    doc.setTextColor(...navy);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('ORÇAMENTO', 16, y);
-    y += 7;
+  const equipment = [];
+  const seen = new Set();
+  items.forEach(item => {
+    const e = item.refrig_equipment || {};
+    if (!seen.has(item.equipment_id)) {
+      seen.add(item.equipment_id);
+      equipment.push([
+        String(equipment.length + 1).padStart(2,'0'),
+        pdfText(e.equipment_type),
+        [e.brand,e.model].filter(Boolean).join(' / ') || '—',
+        pdfText(e.capacity),
+        pdfText(e.observation)
+      ]);
+    }
+  });
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...gray);
-    doc.text('SERVIÇOS E EQUIPAMENTOS', 16, y);
-    y += 6;
+  if (equipment.length) {
+    sectionTitle('Equipamentos');
+    autoTable(doc, {
+      startY: y,
+      head: [['#','TIPO','MARCA / MODELO','CAPACIDADE','OBSERVAÇÃO']],
+      body: equipment,
+      margin: { left: margin, right: margin },
+      tableWidth: contentW,
+      theme: 'grid',
+      styles: { font:'helvetica', fontSize:5.7, cellPadding:1.15, textColor:dark, lineColor:line, lineWidth:.2, overflow:'linebreak', valign:'middle' },
+      headStyles: { fillColor:[238,244,250], textColor:[65,86,111], fontStyle:'bold', fontSize:5.6 },
+      columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:35}, 2:{cellWidth:45}, 3:{cellWidth:32}, 4:{cellWidth:66} },
+      didDrawPage: () => {}
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
 
-    const tableRows = items.map(item => {
-      const equipment = item.refrig_equipment || {};
-      const equipmentName =
-        `${equipment.equipment_type || 'Equipamento'}${equipment.capacity ? ` — ${equipment.capacity}` : ''}`;
+  sectionTitle('Serviços');
+  const groups = [];
+  items.forEach(item => {
+    const key = item.service_name || 'Serviço';
+    let group = groups.find(g => g.name === key);
+    if (!group) { group = { name:key, items:[] }; groups.push(group); }
+    group.items.push(item);
+  });
 
+  groups.forEach((group, index) => {
+    doc.setTextColor(...dark);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6.5);
+    doc.text(`${index + 1}. ${pdfText(group.name)}`, margin, y + 1);
+    y += 3;
+
+    const rows = group.items.map(i => {
+      const e = i.refrig_equipment || {};
+      const original = Number(i.unit_original_value || 0);
+      const discount = Number(i.unit_discount || 0);
+      const final = Number(i.unit_final_value || 0);
+      const qty = Number(i.quantity || 1);
       return [
-        equipmentName,
-        item.service_name || '—',
-        String(item.quantity || 1),
-        money(item.unit_final_value || 0),
-        money(Number(item.quantity || 0) * Number(item.unit_final_value || 0))
+        [e.equipment_type, e.capacity].filter(Boolean).join(' - ') || 'Equipamento',
+        String(qty),
+        pdfMoney(original),
+        pdfMoney(discount),
+        pdfMoney(final),
+        pdfMoney(final * qty)
       ];
     });
 
     autoTable(doc, {
       startY: y,
-      head: [['EQUIPAMENTO', 'SERVIÇO', 'QTD.', 'VALOR UNIT.', 'TOTAL']],
-      body: tableRows,
+      head: [['EQUIPAMENTO','QTD.','VALOR ORIGINAL','DESCONTO','VALOR FINAL','TOTAL']],
+      body: rows,
+      margin: { left: margin, right: margin },
+      tableWidth: contentW,
       theme: 'grid',
-      styles: {
-        font: 'helvetica',
-        fontSize: 8,
-        cellPadding: 3,
-        textColor: [55, 60, 68],
-        lineColor: [225, 228, 233],
-        lineWidth: 0.2
-      },
-      headStyles: {
-        fillColor: navy,
-        textColor: [255, 255, 255],
-        fontStyle: 'bold'
-      },
-      columnStyles: {
-        0: { cellWidth: 46 },
-        1: { cellWidth: 55 },
-        2: { cellWidth: 16, halign: 'center' },
-        3: { cellWidth: 28, halign: 'right' },
-        4: { cellWidth: 31, halign: 'right' }
-      }
+      styles: { font:'helvetica', fontSize:5.45, cellPadding:1.05, textColor:dark, lineColor:line, lineWidth:.2, overflow:'linebreak', valign:'middle' },
+      headStyles: { fillColor:[238,244,250], textColor:[65,86,111], fontStyle:'bold', fontSize:5.25 },
+      columnStyles: { 0:{cellWidth:58}, 1:{cellWidth:11,halign:'center'}, 2:{cellWidth:31,halign:'right'}, 3:{cellWidth:28,halign:'right'}, 4:{cellWidth:29,halign:'right'}, 5:{cellWidth:29,halign:'right',fontStyle:'bold'} },
+      didDrawPage: () => {}
     });
+    y = doc.lastAutoTable.finalY + 2.5;
+    const subtotal = group.items.reduce((sum,i) => sum + Number(i.quantity || 1) * Number(i.unit_final_value || 0), 0);
+    doc.setTextColor(...muted);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(5.8);
+    // Subtotal alinhado ao mesmo eixo da coluna TOTAL, sem deslocamentos artificiais.
+    doc.setTextColor(...muted);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(5.8);
+    doc.text('Subtotal do serviço', W - margin - 34, y, { align:'right' });
+    doc.setTextColor(...dark);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6.4);
+    doc.text(pdfMoney(subtotal), W - margin, y, { align:'right' });
+    y += 5; 
+  });
 
-    y = doc.lastAutoTable.finalY + 10;
+  // Total
+  doc.setFillColor(...lightBlue);
+  doc.setDrawColor(207,226,251);
+  doc.roundedRect(margin, y, contentW, 12, 1.5, 1.5, 'FD');
+  doc.setTextColor(...blue);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(6.5);
+  doc.text('VALOR TOTAL DO ORÇAMENTO', margin + 5, y + 7);
+  doc.setFontSize(12);
+  doc.text(pdfMoney(total), W - margin - 5, y + 7.5, { align:'right' });
+  y += 17;
 
-    const included = [];
-    items.forEach(item => {
-      if (item.included) {
-        String(item.included).split(/\r?\n|;/)
-          .map(x => x.trim())
-          .filter(Boolean)
-          .forEach(x => included.push(x));
-      }
-    });
+  // Conditions and signature
+  doc.setTextColor(...blue);
+  doc.setFontSize(6.5);
+  doc.text('CONDIÇÕES', margin, y);
+  doc.setTextColor(...muted);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(5.8);
+  const conditions = [
+    'Orçamento referente exclusivamente aos serviços descritos.',
+    'Peças, reparos e materiais adicionais, caso necessários, serão cobrados à parte.',
+    `Validade do orçamento: ${validity} dias.`,
+    'Forma de pagamento: a combinar.'
+  ];
+  conditions.forEach((text, i) => doc.text(`• ${text}`, margin + 2, y + 4 + i * 3));
+  if (quote.notes) {
+    doc.setFont('helvetica','bold');
+    doc.text('Observações:', margin, y + 18);
+    doc.setFont('helvetica','normal');
+    doc.text(pdfText(quote.notes), margin + 20, y + 18, { maxWidth: 105 });
+  }
+  doc.setTextColor(...blue);
+  doc.setFont('times','italic');
+  doc.setFontSize(9);
+  doc.text('Obrigado', W - 42, y + 8, { align:'center' });
+  doc.text('pela confiança!', W - 42, y + 12, { align:'center' });
 
-    if (included.length) {
-      doc.setTextColor(...navy);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text('SERVIÇO INCLUSO', 16, y);
-      y += 6;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(...gray);
-
-      included.slice(0, 12).forEach(item => {
-        doc.text('✓', 18, y);
-        doc.text(item, 24, y);
-        y += 5;
-      });
-
-      y += 3;
-    }
-
-    doc.setDrawColor(220, 224, 229);
-    doc.line(16, y, 194, y);
-    y += 9;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...gray);
-    doc.text('VALOR TOTAL', 140, y);
-
-    doc.setFontSize(17);
-    doc.setTextColor(...navy);
-    doc.text(money(quote.total_final), 194, y, { align: 'right' });
-
-    y += 12;
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...navy);
-    doc.text('CONDIÇÕES', 16, y);
-
-    y += 6;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...gray);
-    doc.text('Orçamento referente exclusivamente aos serviços descritos.', 16, y);
-    y += 5;
-    doc.text('Peças, reparos e materiais adicionais, caso necessários, serão cobrados à parte.', 16, y);
-    y += 5;
-    doc.text('Validade do orçamento: 7 dias.', 16, y);
-    y += 5;
-    doc.text('Forma de pagamento: a combinar.', 16, y);
-
-    if (quote.notes) {
-      y += 9;
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...navy);
-      doc.text('OBSERVAÇÕES', 16, y);
-      y += 5;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...gray);
-
-      const lines = doc.splitTextToSize(quote.notes, 178);
-      doc.text(lines, 16, y);
-      y += lines.length * 4.5;
-    }
-
-    y = Math.min(y + 15, 270);
-    doc.setDrawColor(220, 224, 229);
-    doc.line(16, y, 194, y);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...gray);
-    doc.text('Obrigado pela confiança!', 16, y + 7);
-    doc.text(`${DEFAULT_COMPANY_NAME} | ${DEFAULT_COMPANY_SUBTITLE}`, 194, y + 7, { align: 'right' });
-
-    doc.save(`Orcamento-${String(quote.quote_number).padStart(4, '0')}.pdf`);
+  // Critical: never add a page. The document is deliberately composed inside one A4 page.
+  doc.save(`ORC-${String(quote.quote_number).padStart(4,'0')} - ${fileClientName}.pdf`);
+}
   } catch (err) {
     console.error(err);
-    alert('Não foi possível gerar o PDF. Verifique se as bibliotecas jspdf e jspdf-autotable estão instaladas.');
+    alert('Não foi possível gerar o PDF.');
   }
 }
-
 /* ========================= FINANCEIRO ========================= */
 
 function Finance({ setSelected, refresh }) {
