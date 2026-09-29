@@ -281,11 +281,18 @@ function NewQuote({ go, quote = null }) {
   }
 
   if (loadingEdit) return <div className="content"><Loading label="Carregando orçamento..."/></div>;
-  return <div className="content"><button className="back" onClick={() => go('quotes')}><ArrowLeft size={18}/> Voltar</button><PageHead title={quote ? `Editar ORC-${String(quote.quote_number).padStart(4,'0')}` : 'Criar orçamento'} sub="Monte uma proposta com serviços e valores por equipamento." action={<button className="primary" onClick={save} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} {quote?'Salvar alterações':'Salvar orçamento'}</button>}/>{error&&<div className="form-error">{error}</div>}
+  return <div className="content"><button className="back" onClick={() => go('quotes')}><ArrowLeft size={18}/> Voltar</button><PageHead title={quote ? `Editar ORC-${String(quote.quote_number).padStart(4,'0')}` : 'Criar orçamento'} sub="Monte uma proposta com serviços e valores por equipamento." />{error&&<div className="form-error">{error}</div>}
     <section className="panel form-section"><div className="panel-head"><div><h2>1. Cliente</h2><p>Quem receberá o orçamento.</p></div></div><div className="form-grid">{[['name','Nome','text'],['document','CPF / CNPJ','text'],['phone','Telefone','text'],['whatsapp','WhatsApp','text'],['email','E-mail','email'],['address','Endereço','text']].map(([k,l,t])=><label key={k}>{l}<input type={t} value={client[k]||''} onChange={e=>setClient({...client,[k]:e.target.value})} placeholder={k==='document'?'000.000.000-00 ou 00.000.000/0000-00':''}/></label>)}</div><label>Observações<textarea value={client.notes} onChange={e=>setClient({...client,notes:e.target.value})}/></label></section>
     <section className="panel form-section"><div className="panel-head"><div><h2>2. Equipamentos</h2><p>Cadastre cada equipamento que receberá serviço.</p></div><button className="secondary" onClick={addEquipment}><Plus size={16}/> Adicionar equipamento</button></div>{equipment.map((e,i)=><div className="equipment-form" key={e.id || i}><div className="mini-index">{String(i+1).padStart(2,'0')}</div><div className="form-grid equipment-fields"><label>Tipo*<input value={e.type} onChange={ev=>updateEquipment(i,'type',ev.target.value)} placeholder="Ex.: Piso-Teto"/></label><label>Marca<input value={e.brand} onChange={ev=>updateEquipment(i,'brand',ev.target.value)}/></label><label>Modelo<input value={e.model} onChange={ev=>updateEquipment(i,'model',ev.target.value)}/></label><label>Capacidade<input value={e.capacity} onChange={ev=>updateEquipment(i,'capacity',ev.target.value)} placeholder="60.000 BTU"/></label></div></div>)}</section>
     <section className="panel form-section"><div className="panel-head"><div><h2>3. Serviços</h2><p>O mesmo equipamento pode ter vários serviços e cada combinação tem seu próprio preço.</p></div><button className="secondary" onClick={addItem}><Plus size={16}/> Adicionar serviço</button></div>{items.map((it,i)=><div className="service-editor" key={it.id || i}><div className="service-editor-head"><strong>Serviço {String(i+1).padStart(2,'0')}</strong><button className="iconbtn" onClick={()=>setItems(items.filter((_,idx)=>idx!==i))} disabled={items.length===1}><Trash2 size={17}/></button></div><div className="form-grid"><label>Equipamento<select value={it.equipmentIndex} onChange={e=>updateItem(i,'equipmentIndex',Number(e.target.value))}>{equipment.map((e,idx)=><option key={e.id || idx} value={idx}>{idx+1}. {e.type||'Equipamento'}</option>)}</select></label><label>Serviço*<input value={it.service_name} onChange={e=>updateItem(i,'service_name',e.target.value)} placeholder="Lavagem completa"/></label><label>Quantidade<input type="number" min="1" value={it.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)}/></label><label>Valor original<input type="number" step="0.01" value={it.original} onChange={e=>updateItem(i,'original',e.target.value)}/></label><label>Desconto<input type="number" step="0.01" value={it.discount} onChange={e=>updateItem(i,'discount',e.target.value)}/></label><label>Valor final*<input type="number" step="0.01" value={it.final} onChange={e=>updateItem(i,'final',e.target.value)}/></label></div><div className="item-total">Total do item <strong>{money(Number(it.quantity||0)*Number(it.final||0))}</strong></div></div>)}</section>
     <section className="panel total-box"><span>Total do orçamento</span><strong>{money(total)}</strong></section>
+    <div className="quote-save-footer">
+      <button className="secondary" onClick={() => go('quotes')} disabled={saving}>Cancelar</button>
+      <button className="primary" onClick={save} disabled={saving}>
+        {saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>}
+        {saving?'Salvando…':quote?'Salvar alterações':'Salvar orçamento'}
+      </button>
+    </div>
   </div>;
 }
 
@@ -315,7 +322,7 @@ async function loadPdfLibraries() {
 const pdfText = (value) => String(value ?? '—').replace(/\s+/g, ' ').trim() || '—';
 const pdfMoney = (value) => money(Number(value || 0));
 
-async function generateQuotePdf({ quote, client, items, company }) {
+async function generateQuotePdf({ quote, client, items, company, download = true }) {
   await loadPdfLibraries();
 
   const { jsPDF } = window.jspdf;
@@ -548,7 +555,10 @@ async function generateQuotePdf({ quote, client, items, company }) {
   doc.text('pela confiança!', W - 42, y + 12, { align:'center' });
 
   // Critical: never add a page. The document is deliberately composed inside one A4 page.
-  doc.save(`ORC-${String(quote.quote_number).padStart(4,'0')} - ${fileClientName}.pdf`);
+  const fileName = `ORC-${String(quote.quote_number).padStart(4,'0')} - ${fileClientName}.pdf`;
+  const blob = doc.output('blob');
+  if (download) doc.save(fileName);
+  return { blob, fileName };
 }
 
 function QuoteDetail({ quote, back, onChanged, onEdit }) {
@@ -586,13 +596,40 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
     finally{setPdfLoading(false);setActionsOpen(false);}
   }
 
-  function handleWhatsApp(){
+  async function handleWhatsApp(){
     const number=whatsappNumber(client.whatsapp || client.phone);
     if(!number){alert('Este cliente não possui telefone ou WhatsApp cadastrado.');return;}
     const quoteNo=`ORC-${String(quote.quote_number).padStart(4,'0')}`;
-    const message=`Olá, ${client.name || 'tudo bem'}! Segue o orçamento ${quoteNo} da ${displayCompanyName(company.company_name)}. Valor total: ${money(quote.total_final)}. Qualquer dúvida, estou à disposição.`;
-    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
+    const validity=quote.validity_days || 7;
+    const message=`Olá, ${client.name || 'tudo bem'}! Tudo bem?\n\nSegue em anexo o orçamento ${quoteNo}, referente aos serviços solicitados, no valor total de ${money(quote.total_final)}.\n\nO orçamento é válido por ${validity} dias. Em caso de dúvidas ou para aprovação, fico à disposição.\n\n${displayCompanyName(company.company_name)} | Refrigeração`;
     setActionsOpen(false);
+    try{
+      const {blob,fileName}=await generateQuotePdf({quote:{...quote,status},client,items,company,download:false});
+      const file=new File([blob],fileName,{type:'application/pdf'});
+      if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({
+          files:[file],
+          text:message,
+          title:`Orçamento ${quoteNo}`
+        });
+        return;
+      }
+      // Desktop/browsers without file sharing: download the PDF and open WhatsApp with the prepared message.
+      const url=URL.createObjectURL(blob);
+      const anchor=document.createElement('a');
+      anchor.href=url;
+      anchor.download=fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+      window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
+      alert('O PDF foi baixado e a mensagem foi preparada no WhatsApp. Anexe o PDF baixado à conversa.');
+    }catch(error){
+      if(error?.name==='AbortError') return;
+      console.error(error);
+      alert('Não foi possível preparar o envio pelo WhatsApp. Tente gerar o PDF e enviá-lo manualmente.');
+    }
   }
 
   async function handleDelete(){
@@ -622,7 +659,14 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
   const client=quote.refrig_clients||{};
   return <div className="content quote-screen">
     <button className="back" onClick={back}><ArrowLeft size={18}/> Voltar para orçamentos</button>
-    <PageHead title={`ORC-${String(quote.quote_number).padStart(4,'0')}`} sub="Detalhes do orçamento" action={<div className="actions-menu-wrap"><button className="secondary actions-trigger" onClick={()=>setActionsOpen(v=>!v)}><MoreHorizontal size={18}/> Ações</button>{actionsOpen&&<div className="actions-menu"><button onClick={()=>{setActionsOpen(false);onEdit(quote);}}><Pencil size={16}/> Editar orçamento</button><button onClick={handlePdf} disabled={pdfLoading}>{pdfLoading?<LoaderCircle className="spin" size={16}/>:<Download size={16}/>} {pdfLoading?'Gerando PDF…':'Gerar PDF'}</button><button onClick={handleWhatsApp}><MessageCircle size={16}/> Enviar pelo WhatsApp</button><div className="actions-menu-divider"></div><button className="danger-action" onClick={handleDelete} disabled={deleting}><Trash2 size={16}/> {deleting?'Excluindo…':'Excluir orçamento'}</button></div>}</div>}/>
+    <PageHead title={`ORC-${String(quote.quote_number).padStart(4,'0')}`} sub="Detalhes do orçamento" action={
+      <div className="quote-detail-actions">
+        <button className="secondary" onClick={()=>onEdit(quote)}><Pencil size={16}/> Editar</button>
+        <button className="secondary" onClick={handlePdf} disabled={pdfLoading}>{pdfLoading?<LoaderCircle className="spin" size={16}/>:<Download size={16}/>} {pdfLoading?'Gerando…':'Gerar PDF'}</button>
+        <button className="secondary" onClick={handleWhatsApp}><MessageCircle size={16}/> WhatsApp</button>
+        <button className="danger-outline" onClick={handleDelete} disabled={deleting}><Trash2 size={16}/> {deleting?'Excluindo…':'Excluir'}</button>
+      </div>
+    }/>
     <div className="detail-grid">
       <section className="panel"><div className="panel-head"><div><h2>Cliente</h2><p>Dados do solicitante</p></div><Badge status={status}/></div><div className="info-grid"><Info icon={UserRound} label="Nome" value={client.name||'—'}/><Info icon={FileText} label="CPF / CNPJ" value={client.document||client.cpf_cnpj||client.cpf||client.cnpj||'—'}/><Info icon={Phone} label="Telefone" value={client.phone||'—'}/><Info icon={MessageCircle} label="WhatsApp" value={client.whatsapp||'—'}/><Info icon={MapPin} label="Endereço" value={client.address||'—'}/><Info icon={Mail} label="E-mail" value={client.email||'—'}/></div></section>
       <section className="panel"><div className="panel-head"><div><h2>Serviços</h2><p>Composição do orçamento</p></div></div>{items.map(i=><div className="service-line" key={i.id}><div><strong>{i.service_name}</strong><span>{i.quantity} × {i.refrig_equipment?.equipment_type || 'Equipamento'} {i.refrig_equipment?.capacity || ''}</span></div><strong>{money(Number(i.unit_final_value||0)*Number(i.quantity||1))}</strong></div>)}<div className="total"><span>Total</span><strong>{money(quote.total_final)}</strong></div></section>
