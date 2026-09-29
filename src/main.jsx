@@ -1622,6 +1622,9 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
   );
 }
 
+const pdfText = (value) => String(value ?? '—').replace(/\s+/g, ' ').trim() || '—';
+const pdfMoney = (value) => money(Number(value || 0));
+
 async function generatePDF(quote, items) {
   try {
   const { jsPDF } = await import('jspdf');
@@ -1857,7 +1860,7 @@ async function generatePDF(quote, items) {
   doc.save(`ORC-${String(quote.quote_number).padStart(4,'0')} - ${fileClientName}.pdf`);
   } catch (err) {
     console.error(err);
-    alert('Não foi possível gerar o PDF.');
+    alert(`Não foi possível gerar o PDF: ${err?.message || err}`);
   }
 }
 /* ========================= FINANCEIRO ========================= */
