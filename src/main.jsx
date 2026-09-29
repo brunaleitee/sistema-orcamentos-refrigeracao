@@ -1639,10 +1639,9 @@ async function generatePDF(quote, items) {
     const issueDate = quote.issue_date || quote.created_at?.slice(0, 10);
     const validity = quote.validity_days || 7;
     const companyName = DEFAULT_COMPANY_NAME;
+    const client = quote.refrig_clients || {};
     const fileClientName = String(client.name || 'Cliente').replace(/[^a-z0-9áéíóúãõçàâêôü _-]/gi, '').trim() || 'Cliente';
     const total = Number(quote.total_final || 0);
-
-    const client = quote.refrig_clients || {};
 
   // Header — identidade limpa, sem box ao lado do nome
   doc.setTextColor(...dark);
@@ -1856,7 +1855,6 @@ async function generatePDF(quote, items) {
 
   // Critical: never add a page. The document is deliberately composed inside one A4 page.
   doc.save(`ORC-${String(quote.quote_number).padStart(4,'0')} - ${fileClientName}.pdf`);
-}
   } catch (err) {
     console.error(err);
     alert('Não foi possível gerar o PDF.');
