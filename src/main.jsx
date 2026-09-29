@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FileText, Wallet, ClipboardList, Settings, LogOut, Menu, X, Plus, Search,
   ChevronRight, Clock3, CheckCircle2, PlayCircle, PackageCheck, MoreHorizontal, Eye, Pencil,
   Copy, Trash2, SlidersHorizontal, UserRound, Building2, Phone, MapPin, Mail, ArrowLeft,
-  Download, MessageCircle, AlertCircle, LoaderCircle, Save, UserPlus, LockKeyhole, RefreshCw
+  Download, MessageCircle, AlertCircle, LoaderCircle, Save, UserPlus, LockKeyhole, RefreshCw, Wrench, PlusCircle
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import './styles.css';
@@ -14,6 +14,7 @@ const nav = [
   ['quotes', 'Orçamentos', FileText],
   ['finance', 'Financeiro', Wallet],
   ['tickets', 'Chamados', ClipboardList],
+  ['catalog', 'Catálogo de serviços', Wrench],
   ['settings', 'Configurações', Settings],
 ];
 
@@ -42,6 +43,26 @@ function displayCompanyName(value = '') {
   const name = String(value || '').trim();
   return !name || /frios\s*&\s*clima/i.test(name) ? DEFAULT_COMPANY_NAME : name;
 }
+
+const DEFAULT_SERVICE_CATALOG = [
+  { name:'Lavagem completa', category:'Limpeza e Higienização', description:'Lavagem completa de ar-condicionado', included:'Lavagem da evaporadora\nLavagem da condensadora\nLimpeza geral dos componentes externos\nHigienização do equipamento', default_price:400 },
+  { name:'Limpeza', category:'Limpeza e Higienização', description:'Limpeza de ar-condicionado', included:'Limpeza do equipamento\nLimpeza dos filtros\nLimpeza geral dos componentes', default_price:0 },
+  { name:'Higienização', category:'Limpeza e Higienização', description:'Higienização de ar-condicionado', included:'Higienização do equipamento\nLimpeza de componentes internos', default_price:0 },
+  { name:'Lavagem química', category:'Limpeza e Higienização', description:'Lavagem química de ar-condicionado', included:'Aplicação de produto adequado\nLimpeza profunda dos componentes\nHigienização do equipamento', default_price:0 },
+  { name:'Manutenção preventiva', category:'Manutenção', description:'Manutenção preventiva de ar-condicionado', included:'Inspeção geral\nLimpeza dos componentes\nVerificação de funcionamento', default_price:0 },
+  { name:'Manutenção corretiva', category:'Manutenção', description:'Manutenção corretiva de ar-condicionado', included:'Diagnóstico do equipamento\nIdentificação da falha\nCorreção do problema conforme necessidade', default_price:0 },
+  { name:'Diagnóstico técnico', category:'Visita Técnica', description:'Diagnóstico técnico de ar-condicionado', included:'Avaliação do equipamento\nIdentificação de falhas\nOrientação sobre o serviço necessário', default_price:0 },
+  { name:'Visita técnica', category:'Visita Técnica', description:'Visita técnica', included:'Deslocamento até o local\nAvaliação inicial do equipamento', default_price:0 },
+  { name:'Carga de gás', category:'Gás Refrigerante', description:'Carga de gás refrigerante', included:'Verificação do sistema\nCarga de gás conforme necessidade\nTeste de funcionamento', default_price:0 },
+  { name:'Teste de vazamento', category:'Gás Refrigerante', description:'Teste de vazamento do sistema', included:'Inspeção das conexões\nTeste de vazamento\nIdentificação do ponto de fuga', default_price:0 },
+  { name:'Reparo de vazamento', category:'Gás Refrigerante', description:'Reparo de vazamento de gás', included:'Identificação do vazamento\nReparo do ponto de fuga\nTeste do sistema', default_price:0 },
+  { name:'Instalação', category:'Instalação', description:'Instalação de ar-condicionado', included:'Fixação do equipamento\nConexões e drenagem\nTeste de funcionamento', default_price:0 },
+  { name:'Desinstalação', category:'Retirada / Mudança', description:'Desinstalação de ar-condicionado', included:'Desligamento do equipamento\nRetirada técnica\nOrganização do local', default_price:0 },
+  { name:'Reinstalação', category:'Instalação', description:'Reinstalação de ar-condicionado', included:'Instalação do equipamento\nConexões e drenagem\nTeste de funcionamento', default_price:0 },
+  { name:'Reparo', category:'Reparos', description:'Reparo de ar-condicionado', included:'Diagnóstico\nReparo do componente necessário\nTeste de funcionamento', default_price:0 },
+];
+
+const serviceCategories = ['Limpeza e Higienização','Manutenção','Gás Refrigerante','Instalação','Retirada / Mudança','Reparos','Visita Técnica','Outros'];
 
 
 
@@ -139,7 +160,7 @@ function App() {
     {mobile && <div className="overlay" onClick={() => setMobile(false)} />}
     <main className="main">
       <header><button className="menu" onClick={() => setMobile(true)}><Menu/></button><div className="header-search"><Search size={18}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar orçamento, cliente..."/></div></header>
-      {selected ? <QuoteDetail quote={selected} back={() => setSelected(null)} onChanged={refreshData} onEdit={openEdit} /> : page === 'newQuote' ? <NewQuote go={go} /> : page === 'editQuote' ? <NewQuote go={go} quote={editingQuote} /> : page === 'home' ? <Home go={go} setSelected={setSelected} refresh={refresh} /> : page === 'quotes' ? <Quotes search={search} setSelected={setSelected} go={go} refresh={refresh} /> : page === 'finance' ? <Finance setSelected={setSelected} refresh={refresh} /> : page === 'tickets' ? <Tickets setSelected={setSelected} refresh={refresh} /> : <SettingsPage refresh={refreshData} />}
+      {selected ? <QuoteDetail quote={selected} back={() => setSelected(null)} onChanged={refreshData} onEdit={openEdit} /> : page === 'newQuote' ? <NewQuote go={go} /> : page === 'editQuote' ? <NewQuote go={go} quote={editingQuote} /> : page === 'home' ? <Home go={go} setSelected={setSelected} refresh={refresh} /> : page === 'quotes' ? <Quotes search={search} setSelected={setSelected} go={go} refresh={refresh} /> : page === 'finance' ? <Finance setSelected={setSelected} refresh={refresh} /> : page === 'tickets' ? <Tickets setSelected={setSelected} refresh={refresh} /> : page === 'catalog' ? <ServiceCatalog refresh={refreshData} /> : <SettingsPage refresh={refreshData} />}
     </main>
   </div>;
 }
@@ -191,8 +212,21 @@ function Quotes({ search, setSelected, go, refresh }) {
 function NewQuote({ go, quote = null }) {
   const [client, setClient] = useState({ name:'', document:'', phone:'', whatsapp:'', email:'', address:'', notes:'' });
   const [equipment, setEquipment] = useState([{ type:'', brand:'', model:'', capacity:'', observation:'' }]);
-  const [items, setItems] = useState([{ equipmentIndex:0, service_name:'Lavagem completa', service_description:'', quantity:1, original:'', discount:'', final:'' }]);
+  const [items, setItems] = useState([{ equipmentIndex:0, service_catalog_id:'', service_name:'', service_description:'', included:'', quantity:1, original:'', discount:'', final:'' }]);
+  const [catalog, setCatalog] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [saving, setSaving] = useState(false); const [loadingEdit, setLoadingEdit] = useState(Boolean(quote)); const [error, setError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    supabase.from('refrig_service_catalog').select('*').eq('active', true).order('category').order('name').then(({data, error:catalogError})=>{
+      if(!alive) return;
+      if(catalogError){ console.warn('Catálogo indisponível:', catalogError.message); setCatalog(DEFAULT_SERVICE_CATALOG.map((x,i)=>({...x,id:`default-${i}`,active:true}))); }
+      else setCatalog((data && data.length) ? data : DEFAULT_SERVICE_CATALOG.map((x,i)=>({...x,id:`default-${i}`,active:true})));
+      setCatalogLoading(false);
+    });
+    return ()=>{alive=false;};
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -223,7 +257,7 @@ function NewQuote({ go, quote = null }) {
       setEquipment(eqs.length ? eqs : [{ type:'', brand:'', model:'', capacity:'', observation:'' }]);
       setItems((data || []).map(row => ({
         id: row.id, equipmentIndex:indexById.get(row.equipment_id) ?? 0, service_name:row.service_name || '',
-        service_description:row.service_description || '', quantity:Number(row.quantity || 1), original:String(row.unit_original_value ?? ''),
+        service_catalog_id: catalog.find(s=>s.name===row.service_name)?.id || '', service_description:row.service_description || '', included:'', quantity:Number(row.quantity || 1), original:String(row.unit_original_value ?? ''),
         discount:String(row.unit_discount ?? ''), final:String(row.unit_final_value ?? '')
       })));
       setLoadingEdit(false);
@@ -231,12 +265,34 @@ function NewQuote({ go, quote = null }) {
     return () => { alive = false; };
   }, [quote]);
 
+  useEffect(() => {
+    if (!catalog.length || !items.length) return;
+    setItems(prev => prev.map(item => {
+      const service = catalog.find(s => s.name === item.service_name);
+      return service ? { ...item, service_catalog_id: item.service_catalog_id || service.id, service_description: item.service_description || service.description || '', included: item.included || service.included || '' } : item;
+    }));
+  }, [catalog.length]);
+
+  const applyCatalogService = (index, serviceId) => {
+    const selectedService = catalog.find(s => String(s.id) === String(serviceId));
+    if (!selectedService) return;
+    setItems(items.map((it,idx)=>idx===index ? {
+      ...it,
+      service_catalog_id: selectedService.id,
+      service_name: selectedService.name,
+      service_description: selectedService.description || '',
+      included: selectedService.included || '',
+      original: selectedService.default_price ? String(selectedService.default_price) : '',
+      final: selectedService.default_price ? String(selectedService.default_price) : ''
+    } : it));
+  };
+
   const addEquipment = () => {
     const next = [...equipment, {type:'',brand:'',model:'',capacity:'',observation:''}];
     setEquipment(next);
-    setItems([...items, { equipmentIndex: next.length-1, service_name:'', service_description:'', quantity:1, original:'', discount:'', final:'' }]);
+    setItems([...items, { equipmentIndex: next.length-1, service_catalog_id:'', service_name:'', service_description:'', included:'', quantity:1, original:'', discount:'', final:'' }]);
   };
-  const addItem = () => setItems([...items, { equipmentIndex:0, service_name:'', service_description:'', quantity:1, original:'', discount:'', final:'' }]);
+  const addItem = () => setItems([...items, { equipmentIndex:0, service_catalog_id:'', service_name:'', service_description:'', included:'', quantity:1, original:'', discount:'', final:'' }]);
   const updateEquipment = (i,key,value) => setEquipment(equipment.map((e,idx)=>idx===i?{...e,[key]:value}:e));
   const updateItem = (i,key,value) => setItems(items.map((it,idx)=>idx===i?{...it,[key]:value}:it));
   const total = items.reduce((sum,it)=>sum + Number(it.quantity||0) * Number(it.final||0), 0);
@@ -284,7 +340,14 @@ function NewQuote({ go, quote = null }) {
   return <div className="content"><button className="back" onClick={() => go('quotes')}><ArrowLeft size={18}/> Voltar</button><PageHead title={quote ? `Editar ORC-${String(quote.quote_number).padStart(4,'0')}` : 'Criar orçamento'} sub="Monte uma proposta com serviços e valores por equipamento." />{error&&<div className="form-error">{error}</div>}
     <section className="panel form-section"><div className="panel-head"><div><h2>1. Cliente</h2><p>Quem receberá o orçamento.</p></div></div><div className="form-grid">{[['name','Nome','text'],['document','CPF / CNPJ','text'],['phone','Telefone','text'],['whatsapp','WhatsApp','text'],['email','E-mail','email'],['address','Endereço','text']].map(([k,l,t])=><label key={k}>{l}<input type={t} value={client[k]||''} onChange={e=>setClient({...client,[k]:e.target.value})} placeholder={k==='document'?'000.000.000-00 ou 00.000.000/0000-00':''}/></label>)}</div><label>Observações<textarea value={client.notes} onChange={e=>setClient({...client,notes:e.target.value})}/></label></section>
     <section className="panel form-section"><div className="panel-head"><div><h2>2. Equipamentos</h2><p>Cadastre cada equipamento que receberá serviço.</p></div><button className="secondary" onClick={addEquipment}><Plus size={16}/> Adicionar equipamento</button></div>{equipment.map((e,i)=><div className="equipment-form" key={e.id || i}><div className="mini-index">{String(i+1).padStart(2,'0')}</div><div className="form-grid equipment-fields"><label>Tipo*<input value={e.type} onChange={ev=>updateEquipment(i,'type',ev.target.value)} placeholder="Ex.: Piso-Teto"/></label><label>Marca<input value={e.brand} onChange={ev=>updateEquipment(i,'brand',ev.target.value)}/></label><label>Modelo<input value={e.model} onChange={ev=>updateEquipment(i,'model',ev.target.value)}/></label><label>Capacidade<input value={e.capacity} onChange={ev=>updateEquipment(i,'capacity',ev.target.value)} placeholder="60.000 BTU"/></label></div></div>)}</section>
-    <section className="panel form-section"><div className="panel-head"><div><h2>3. Serviços</h2><p>O mesmo equipamento pode ter vários serviços e cada combinação tem seu próprio preço.</p></div><button className="secondary" onClick={addItem}><Plus size={16}/> Adicionar serviço</button></div>{items.map((it,i)=><div className="service-editor" key={it.id || i}><div className="service-editor-head"><strong>Serviço {String(i+1).padStart(2,'0')}</strong><button className="iconbtn" onClick={()=>setItems(items.filter((_,idx)=>idx!==i))} disabled={items.length===1}><Trash2 size={17}/></button></div><div className="form-grid"><label>Equipamento<select value={it.equipmentIndex} onChange={e=>updateItem(i,'equipmentIndex',Number(e.target.value))}>{equipment.map((e,idx)=><option key={e.id || idx} value={idx}>{idx+1}. {e.type||'Equipamento'}</option>)}</select></label><label>Serviço*<input value={it.service_name} onChange={e=>updateItem(i,'service_name',e.target.value)} placeholder="Lavagem completa"/></label><label>Quantidade<input type="number" min="1" value={it.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)}/></label><label>Valor original<input type="number" step="0.01" value={it.original} onChange={e=>updateItem(i,'original',e.target.value)}/></label><label>Desconto<input type="number" step="0.01" value={it.discount} onChange={e=>updateItem(i,'discount',e.target.value)}/></label><label>Valor final*<input type="number" step="0.01" value={it.final} onChange={e=>updateItem(i,'final',e.target.value)}/></label></div><div className="item-total">Total do item <strong>{money(Number(it.quantity||0)*Number(it.final||0))}</strong></div></div>)}</section>
+    <section className="panel form-section"><div className="panel-head"><div><h2>3. Serviços</h2><p>O mesmo equipamento pode ter vários serviços e cada combinação tem seu próprio preço.</p></div><button className="secondary" onClick={addItem}><Plus size={16}/> Adicionar serviço</button></div>{items.map((it,i)=><div className="service-editor" key={it.id || i}><div className="service-editor-head"><strong>Serviço {String(i+1).padStart(2,'0')}</strong><button className="iconbtn" onClick={()=>setItems(items.filter((_,idx)=>idx!==i))} disabled={items.length===1}><Trash2 size={17}/></button></div><div className="form-grid"><label>Equipamento<select value={it.equipmentIndex} onChange={e=>updateItem(i,'equipmentIndex',Number(e.target.value))}>{equipment.map((e,idx)=><option key={e.id || idx} value={idx}>{idx+1}. {e.type||'Equipamento'}</option>)}</select></label><label>Serviço*
+<select value={it.service_catalog_id || (it.service_name && !catalog.some(s=>s.name===it.service_name) ? `legacy:${it.service_name}` : '')} onChange={e=>{ if(e.target.value.startsWith('legacy:')) updateItem(i,'service_catalog_id',''); else if(e.target.value) applyCatalogService(i,e.target.value); else updateItem(i,'service_catalog_id',''); }} disabled={catalogLoading}>
+<option value="">{catalogLoading?'Carregando serviços…':'Selecione um serviço'}</option>
+{it.service_name && !catalog.some(s=>s.name===it.service_name) && <option value={`legacy:${it.service_name}`}>{it.service_name} · serviço atual</option>}
+{catalog.map(s=><option key={s.id} value={s.id}>{s.category ? `${s.category} · ` : ''}{s.name}</option>)}
+</select>
+{it.service_name && <small className="field-hint">{it.service_description || 'Serviço selecionado no catálogo.'}</small>}
+</label><label>Quantidade<input type="number" min="1" value={it.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)}/></label><label>Valor original<input type="number" step="0.01" value={it.original} onChange={e=>updateItem(i,'original',e.target.value)}/></label><label>Desconto<input type="number" step="0.01" value={it.discount} onChange={e=>updateItem(i,'discount',e.target.value)}/></label><label>Valor final*<input type="number" step="0.01" value={it.final} onChange={e=>updateItem(i,'final',e.target.value)}/></label></div>{it.included&&<div className="service-included-preview"><strong>Incluso no serviço</strong><span>{it.included}</span></div>}<div className="item-total">Total do item <strong>{money(Number(it.quantity||0)*Number(it.final||0))}</strong></div></div>)}</section>
     <section className="panel total-box"><span>Total do orçamento</span><strong>{money(total)}</strong></section>
     <div className="quote-save-footer">
       <button className="secondary" onClick={() => go('quotes')} disabled={saving}>Cancelar</button>
@@ -686,6 +749,71 @@ function Finance({setSelected,refresh}) {
 }
 
 function Tickets({setSelected,refresh}) { const [tickets,setTickets]=useState([]); const [loading,setLoading]=useState(true); useEffect(()=>{supabase.from('refrig_service_calls').select('*, refrig_quotes(*, refrig_clients(name, document, phone, whatsapp, email, address))').order('created_at',{ascending:false}).then(({data})=>{setTickets(data||[]);setLoading(false);});},[refresh]); return <div className="content"><PageHead title="Chamados" sub="Serviços aprovados e em execução."/><div className="ticket-filters"><button className="selected">Todos <b>{tickets.length}</b></button><button>Aprovados</button><button>Em andamento</button><button>Concluídos</button></div>{loading?<Loading/>:<div className="ticket-list">{tickets.map(t=><div className="ticket" key={t.id} onClick={()=>t.refrig_quotes&&setSelected(t.refrig_quotes)}><div className="ticket-num">CH-{String(t.call_number).padStart(4,'0')}</div><div className="grow"><strong>{t.refrig_quotes?.refrig_clients?.name||'Cliente'}</strong><span>ORC-{String(t.refrig_quotes?.quote_number||0).padStart(4,'0')}</span></div><strong>{money(t.refrig_quotes?.total_final)}</strong><Badge status={t.status==='aprovado'?'aprovado':t.status}/><ChevronRight size={18}/></div>)}{!tickets.length&&<Empty title="Nenhum chamado ainda" text="Um chamado será criado automaticamente quando um orçamento for aprovado."/>}</div>}</div> }
+
+function ServiceCatalog({refresh}) {
+  const [services,setServices]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState('');
+  const [editing,setEditing]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [search,setSearch]=useState('');
+  const [filter,setFilter]=useState('Todos');
+
+  async function load(){
+    setLoading(true); setError('');
+    const {data:userData}=await supabase.auth.getUser();
+    const ownerId=userData?.user?.id;
+    const {data,error:err}=await supabase.from('refrig_service_catalog').select('*').eq('owner_id',ownerId).order('category').order('name');
+    if(err){setError(err.message);setServices([]);setLoading(false);return;}
+    if(ownerId && !(data||[]).length){
+      const seed=DEFAULT_SERVICE_CATALOG.map(service=>({...service,owner_id:ownerId,active:true}));
+      const {data:created,error:seedError}=await supabase.from('refrig_service_catalog').insert(seed).select('*');
+      if(seedError){setError(seedError.message);setServices([]);} else setServices(created||[]);
+    } else setServices(data||[]);
+    setLoading(false);
+  }
+  useEffect(()=>{load();},[]);
+
+  function startNew(){setEditing({name:'',category:'Outros',description:'',included:'',default_price:'',active:true});}
+  function startEdit(service){setEditing({...service,default_price:service.default_price ?? ''});}
+
+  async function saveService(){
+    if(!editing.name.trim()) return setError('Informe o nome do serviço.');
+    setSaving(true); setError('');
+    try{
+      const {data:user}=await supabase.auth.getUser();
+      const payload={name:editing.name.trim(),category:editing.category||'Outros',description:editing.description||'',included:editing.included||'',default_price:Number(editing.default_price||0),active:editing.active!==false,owner_id:user.user.id};
+      let result;
+      if(editing.id) result=await supabase.from('refrig_service_catalog').update(payload).eq('id',editing.id).eq('owner_id',user.user.id).select().single();
+      else result=await supabase.from('refrig_service_catalog').insert(payload).select().single();
+      if(result.error) throw result.error;
+      setEditing(null); await load(); refresh();
+    }catch(e){setError(e.message||'Não foi possível salvar o serviço.');}
+    finally{setSaving(false);}
+  }
+
+  async function toggleService(service){
+    const {error:err}=await supabase.from('refrig_service_catalog').update({active:!service.active}).eq('id',service.id).eq('owner_id', (await supabase.auth.getUser()).data.user.id);
+    if(err) setError(err.message); else load();
+  }
+
+  async function deleteService(service){
+    if(!confirm(`Excluir o serviço “${service.name}” do catálogo?`)) return;
+    const {error:err}=await supabase.from('refrig_service_catalog').delete().eq('id',service.id).eq('owner_id', (await supabase.auth.getUser()).data.user.id);
+    if(err) setError(err.message); else load();
+  }
+
+  const filtered=services.filter(s=>(filter==='Todos'||s.category===filter) && `${s.name} ${s.category} ${s.description}`.toLowerCase().includes(search.toLowerCase()));
+  const categories=['Todos',...serviceCategories.filter(c=>services.some(s=>s.category===c))];
+
+  return <div className="content catalog-page">
+    <PageHead title="Catálogo de serviços" sub="Cadastre uma vez e escolha os serviços prontos ao criar um orçamento." action={<button className="primary" onClick={startNew}><Plus size={18}/> Novo serviço</button>}/>
+    {error&&<div className="form-error">{error}</div>}
+    <div className="catalog-toolbar"><div className="catalog-search"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar serviço..."/></div><div className="tabs catalog-tabs">{categories.map(c=><button key={c} className={filter===c?'selected':''} onClick={()=>setFilter(c)}>{c}</button>)}</div></div>
+    {loading?<Loading/>:<div className="catalog-grid">{filtered.map(service=><article className={`catalog-card ${!service.active?'inactive':''}`} key={service.id}><div className="catalog-card-top"><span className="catalog-category">{service.category}</span><button className="iconbtn" title="Editar" onClick={()=>startEdit(service)}><Pencil size={16}/></button></div><h2>{service.name}</h2><p>{service.description||'Sem descrição cadastrada.'}</p>{service.included&&<div className="catalog-included"><strong>Incluso</strong><span>{service.included}</span></div>}<div className="catalog-card-bottom"><strong>{Number(service.default_price||0)>0?money(service.default_price):'Preço a definir'}</strong><div><button className="secondary" onClick={()=>toggleService(service)}>{service.active?'Desativar':'Ativar'}</button><button className="iconbtn catalog-delete" title="Excluir" onClick={()=>deleteService(service)}><Trash2 size={16}/></button></div></div></article>)}{!filtered.length&&<Empty title="Nenhum serviço encontrado" text="Adicione um novo serviço ao catálogo."/>}</div>}
+    {editing&&<div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&setEditing(null)}><div className="modal-card"><div className="panel-head"><div><h2>{editing.id?'Editar serviço':'Novo serviço'}</h2><p>Essas informações serão usadas no preenchimento e no PDF.</p></div><button className="iconbtn" onClick={()=>setEditing(null)}><X size={18}/></button></div><div className="form-grid"><label>Nome do serviço*<input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} placeholder="Ex.: Lavagem completa"/></label><label>Categoria*<select value={editing.category} onChange={e=>setEditing({...editing,category:e.target.value})}>{serviceCategories.map(c=><option key={c}>{c}</option>)}</select></label><label>Preço padrão<input type="number" step="0.01" min="0" value={editing.default_price} onChange={e=>setEditing({...editing,default_price:e.target.value})} placeholder="0,00"/></label></div><label>Descrição<input value={editing.description||''} onChange={e=>setEditing({...editing,description:e.target.value})} placeholder="Ex.: Lavagem completa de ar-condicionado"/></label><label>O que está incluso<textarea value={editing.included||''} onChange={e=>setEditing({...editing,included:e.target.value})} placeholder="Um item por linha"/></label><div className="modal-actions"><button className="secondary" onClick={()=>setEditing(null)}>Cancelar</button><button className="primary" onClick={saveService} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} {saving?'Salvando…':'Salvar serviço'}</button></div></div></div>}
+  </div>;
+}
 
 function SettingsPage({refresh}) {
   const [company,setCompany]=useState({company_name:DEFAULT_COMPANY_NAME,document:'',phone:'',whatsapp:'',email:'',address:''});
