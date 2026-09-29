@@ -1475,8 +1475,13 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
     }
   }
 
-  function openWhatsApp() {
+  async function openWhatsApp() {
     const number = whatsappNumber(client.whatsapp || client.phone);
+
+    if (!number) {
+      alert('O cliente não possui telefone/WhatsApp cadastrado.');
+      return;
+    }
 
     const message =
       `Olá, ${client.name || ''}! Tudo bem?\n\n` +
@@ -1485,15 +1490,60 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
       `O orçamento é válido por 7 dias. Em caso de dúvidas ou para aprovação, fico à disposição.\n\n` +
       `${DEFAULT_COMPANY_NAME} | ${DEFAULT_COMPANY_SUBTITLE}`;
 
-    if (!number) {
-      alert('O cliente não possui telefone/WhatsApp cadastrado.');
-      return;
-    }
+    try {
+      // Gera o mesmo PDF usado pelo botão "Gerar PDF", sem alterar o layout.
+      const result = await generatePDF(quote, items, { download: false });
+      const file = new File([result.blob], result.fileName, { type: 'application/pdf' });
 
-    window.open(
-      `https://wa.me/${number}?text=${encodeURIComponent(message)}`,
-      '_blank'
-    );
+      // CELULAR / TABLET:
+      // Se o navegador oferecer compartilhamento de arquivos, o PDF vai
+      // diretamente para o WhatsApp junto com a mensagem.
+      if (
+        typeof navigator !== 'undefined' &&
+        typeof navigator.share === 'function' &&
+        (!navigator.canShare || navigator.canShare({ files: [file] }))
+      ) {
+        try {
+          await navigator.share({
+            files: [file],
+            text: message,
+            title: `Orçamento ${code('ORC', quote.quote_number)}`
+          });
+          return;
+        } catch (shareError) {
+          // O usuário pode ter fechado a janela de compartilhamento.
+          if (shareError?.name === 'AbortError') return;
+          console.warn('Compartilhamento de arquivo não disponível:', shareError);
+        }
+      }
+
+      // DESKTOP / FALLBACK:
+      // Navegadores de desktop não permitem que uma página web anexe
+      // automaticamente um arquivo ao WhatsApp Web por segurança.
+      // Então baixamos o PDF e abrimos o WhatsApp com a mensagem pronta.
+      const url = URL.createObjectURL(result.blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = result.fileName;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      const whatsappUrl =
+        `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
+      alert(
+        'O PDF foi baixado e o WhatsApp foi aberto com a mensagem pronta. ' +
+        'No computador, anexe o PDF baixado à conversa.'
+      );
+    } catch (err) {
+      console.error(err);
+      alert(`Não foi possível preparar o PDF para o WhatsApp: ${err?.message || err}`);
+    }
   }
 
   return (
@@ -1630,7 +1680,7 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
 const pdfText = (value) => String(value ?? '—').replace(/\s+/g, ' ').trim() || '—';
 const pdfMoney = (value) => money(Number(value || 0));
 
-async function generatePDF(quote, items) {
+async function generatePDF(quote, items, { download = true } = {}) {
   try {
   const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
@@ -1862,7 +1912,10 @@ async function generatePDF(quote, items) {
   doc.text('pela confiança!', W - 42, y + 12, { align:'center' });
 
   // Critical: never add a page. The document is deliberately composed inside one A4 page.
-  doc.save(`ORC-${String(quote.quote_number).padStart(4,'0')} - ${fileClientName}.pdf`);
+  const fileName = `ORC-${String(quote.quote_number).padStart(4,'0')} - ${fileClientName}.pdf`;
+  const blob = doc.output('blob');
+  if (download) doc.save(fileName);
+  return { blob, fileName };
   } catch (err) {
     console.error(err);
     alert(`Não foi possível gerar o PDF: ${err?.message || err}`);
