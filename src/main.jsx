@@ -71,8 +71,13 @@ const displayCompanyName = (value) => {
   return name;
 };
 
-const whatsappNumber = (value = '') =>
-  String(value || '').replace(/\D/g, '');
+const whatsappNumber = (value = '') => {
+  let number = String(value || '').replace(/\D/g, '');
+  if (number.startsWith('00')) number = number.slice(2);
+  if (number.startsWith('0')) number = number.slice(1);
+  if (number.length === 10 || number.length === 11) number = `55${number}`;
+  return number;
+};
 
 function Badge({ status }) {
   return (
