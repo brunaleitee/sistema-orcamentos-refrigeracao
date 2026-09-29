@@ -1491,36 +1491,9 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
       `${DEFAULT_COMPANY_NAME} | ${DEFAULT_COMPANY_SUBTITLE}`;
 
     try {
-      // Gera o mesmo PDF usado pelo botão "Gerar PDF", sem alterar o layout.
+      // Gera o mesmo PDF do botão "Gerar PDF" e baixa para o dispositivo.
       const result = await generatePDF(quote, items, { download: false });
-      const file = new File([result.blob], result.fileName, { type: 'application/pdf' });
 
-      // CELULAR / TABLET:
-      // Se o navegador oferecer compartilhamento de arquivos, o PDF vai
-      // diretamente para o WhatsApp junto com a mensagem.
-      if (
-        typeof navigator !== 'undefined' &&
-        typeof navigator.share === 'function' &&
-        (!navigator.canShare || navigator.canShare({ files: [file] }))
-      ) {
-        try {
-          await navigator.share({
-            files: [file],
-            text: message,
-            title: `Orçamento ${code('ORC', quote.quote_number)}`
-          });
-          return;
-        } catch (shareError) {
-          // O usuário pode ter fechado a janela de compartilhamento.
-          if (shareError?.name === 'AbortError') return;
-          console.warn('Compartilhamento de arquivo não disponível:', shareError);
-        }
-      }
-
-      // DESKTOP / FALLBACK:
-      // Navegadores de desktop não permitem que uma página web anexe
-      // automaticamente um arquivo ao WhatsApp Web por segurança.
-      // Então baixamos o PDF e abrimos o WhatsApp com a mensagem pronta.
       const url = URL.createObjectURL(result.blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -1531,15 +1504,12 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
 
+      // Abre DIRETAMENTE a conversa do cliente com a mensagem pronta.
+      // Isso funciona tanto no celular quanto no desktop/WhatsApp Web.
       const whatsappUrl =
         `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 
-      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-
-      alert(
-        'O PDF foi baixado e o WhatsApp foi aberto com a mensagem pronta. ' +
-        'No computador, anexe o PDF baixado à conversa.'
-      );
+      window.location.href = whatsappUrl;
     } catch (err) {
       console.error(err);
       alert(`Não foi possível preparar o PDF para o WhatsApp: ${err?.message || err}`);
