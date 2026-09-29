@@ -16,3 +16,18 @@
 .actions-menu-divider{height:1px;background:var(--line);margin:6px 4px}
 .actions-menu .danger-action{color:#b42318}
 .actions-menu .danger-action:hover{background:#fff1f0}
+
+/* Ajustes de UX | ações visíveis e salvar no final */
+.quote-detail-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.quote-detail-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap}
+.quote-detail-actions .danger-outline{border:1px solid #f1b8b2;background:#fff;color:#b42318;border-radius:10px;padding:10px 13px;font:600 11px Inter;cursor:pointer}
+.quote-detail-actions .danger-outline:hover{background:#fff5f3}
+.quote-detail-actions button:disabled{opacity:.55;cursor:not-allowed}
+.quote-save-footer{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin:18px 0 34px}
+.quote-save-footer button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+@media(max-width:760px){
+  .quote-detail-actions{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .quote-detail-actions button{width:100%}
+  .quote-save-footer{display:grid;grid-template-columns:1fr;margin:18px 0 24px}
+  .quote-save-footer button{width:100%}
+}
