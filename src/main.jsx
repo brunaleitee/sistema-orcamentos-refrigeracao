@@ -5,7 +5,7 @@ import {
   Menu, X, Plus, Search, ChevronRight, Clock3, CheckCircle2,
   PlayCircle, PackageCheck, Eye, Pencil, Copy, Trash2, SlidersHorizontal,
   UserRound, Building2, Phone, MapPin, Mail, ArrowLeft, Download,
-  MessageCircle, AlertCircle, LoaderCircle, Save, UserPlus, LockKeyhole,
+  MessageCircle, Share2, AlertCircle, LoaderCircle, Save, UserPlus, LockKeyhole,
   RefreshCw, BookOpen, Wrench, Check, XCircle
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -1476,13 +1476,6 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
   }
 
   async function openWhatsApp() {
-    const number = whatsappNumber(client.whatsapp || client.phone);
-
-    if (!number) {
-      alert('O cliente não possui telefone/WhatsApp cadastrado.');
-      return;
-    }
-
     const message =
       `Olá, ${client.name || ''}! Tudo bem?\n\n` +
       `Segue o orçamento ${code('ORC', quote.quote_number)}, ` +
@@ -1491,31 +1484,39 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
       `${DEFAULT_COMPANY_NAME} | ${DEFAULT_COMPANY_SUBTITLE}`;
 
     try {
-      // Gera o mesmo PDF do botão "Gerar PDF" e baixa para o dispositivo.
+      // Gera o PDF sem baixar. O arquivo será enviado ao compartilhamento nativo.
       const result = await generatePDF(quote, items, { download: false });
+      const file = new File([result.blob], result.fileName, {
+        type: 'application/pdf'
+      });
 
-      const url = URL.createObjectURL(result.blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = result.fileName;
-      anchor.style.display = 'none';
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      // Usa o mesmo compartilhamento nativo no celular e no desktop.
+      // O PDF vai anexado e a mensagem segue pronta para o aplicativo escolhido.
+      if (!navigator.share) {
+        throw new Error('Seu navegador não oferece compartilhamento de arquivos.');
+      }
 
-      // Abre DIRETAMENTE a conversa do cliente com a mensagem pronta.
-      // Isso funciona tanto no celular quanto no desktop/WhatsApp Web.
-      const whatsappUrl =
-        `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        throw new Error('Seu navegador não permite compartilhar arquivos PDF.');
+      }
 
-      window.location.href = whatsappUrl;
+      await navigator.share({
+        files: [file],
+        text: message,
+        title: `Orçamento ${code('ORC', quote.quote_number)}`
+      });
     } catch (err) {
+      // Fechar a janela de compartilhamento não é um erro.
+      if (err?.name === 'AbortError') return;
+
       console.error(err);
-      alert(`Não foi possível preparar o PDF para o WhatsApp: ${err?.message || err}`);
+      alert(
+        `Não foi possível abrir o compartilhamento do orçamento: ${
+          err?.message || err
+        }`
+      );
     }
   }
-
   return (
     <div className="content">
       <button className="back" onClick={back}>
@@ -1537,7 +1538,7 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
               <Copy size={17} /> Duplicar
             </button>
             <button className="primary" onClick={openWhatsApp}>
-              <MessageCircle size={17} /> WhatsApp
+              <Share2 size={17} /> Compartilhar
             </button>
             <button className="danger" onClick={() => deleteQuote(quote, () => {
               onChanged();
