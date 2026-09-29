@@ -334,20 +334,14 @@ async function generateQuotePdf({ quote, client, items, company }) {
   const fileClientName = safeFileName(client?.name || 'Cliente');
   const total = Number(quote.total_final || 0);
 
-  // Header
-  doc.setFillColor(...blue);
-  doc.roundedRect(margin, 11, 10, 10, 2, 2, 'F');
-  doc.setTextColor(255,255,255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('✦', margin + 5, 17.5, { align: 'center' });
-
+  // Header — identidade limpa, sem box ao lado do nome
   doc.setTextColor(...dark);
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.text(companyName, margin + 14, 16);
+  doc.text(companyName, margin, 16);
   doc.setFontSize(5.5);
   doc.setTextColor(...muted);
-  doc.text('REFRIGERAÇÃO', margin + 14, 20);
+  doc.text('REFRIGERAÇÃO', margin, 20);
 
   doc.setTextColor(...blue);
   doc.setFontSize(7.5);
@@ -362,37 +356,50 @@ async function generateQuotePdf({ quote, client, items, company }) {
   doc.setDrawColor(...line);
   doc.line(margin, 25, W - margin, 25);
 
-  // Client / contact
+  // Cliente / contato — cada informação aparece uma única vez
+  const halfX = margin + contentW / 2 + 3;
+  const clientDocument = client?.document || client?.cpf_cnpj || client?.cpf || client?.cnpj || '';
+
   doc.setTextColor(...blue);
   doc.setFont('helvetica','bold');
   doc.setFontSize(6.5);
   doc.text('CLIENTE', margin, 31);
-  doc.text('CONTATO', margin + contentW/2 + 3, 31);
+  doc.text('CONTATO', halfX, 31);
 
-  doc.setTextColor(...dark);
-  doc.setFontSize(7.5);
-  doc.text(pdfText(client.name), margin, 35);
-  doc.setFont('helvetica','normal');
-  doc.setTextColor(...muted);
-  doc.setFontSize(6.5);
-  const clientContact = client.phone || client.whatsapp;
-  if (clientContact) doc.text(pdfText(clientContact), margin, 39);
-  if (client.address) doc.text(pdfText(client.address), margin, 43);
-  if (client.email) doc.text(pdfText(client.email), margin, 47);
-
+  // Divisor entre os dois blocos
   doc.setDrawColor(219,234,254);
   doc.setLineWidth(0.7);
   doc.line(margin + contentW/2, 31, margin + contentW/2, 47);
   doc.setLineWidth(0.2);
-  let cy = 35;
+
+  // Dados do cliente: nome, CPF/CNPJ e endereço
+  doc.setTextColor(...dark);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(7.5);
+  doc.text(pdfText(client.name), margin, 35);
+
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(...muted);
+  doc.setFontSize(6.5);
+  let clientY = 39;
+  if (clientDocument) {
+    doc.text(`CPF/CNPJ: ${pdfText(clientDocument)}`, margin, clientY, { maxWidth: contentW/2 - 8 });
+    clientY += 4;
+  }
+  if (client.address) {
+    doc.text(pdfText(client.address), margin, clientY, { maxWidth: contentW/2 - 8 });
+  }
+
+  // Dados de contato: telefone, WhatsApp e e-mail do cliente
   const contactLines = [
-    company?.phone || client?.phone,
-    company?.whatsapp || client?.whatsapp,
-    company?.email || client?.email
+    client?.phone ? `Telefone: ${client.phone}` : '',
+    client?.whatsapp ? `WhatsApp: ${client.whatsapp}` : '',
+    client?.email ? `E-mail: ${client.email}` : ''
   ].filter(Boolean);
-  if (!contactLines.length && company?.document) contactLines.push(company.document);
+
+  let cy = 35;
   contactLines.slice(0, 3).forEach(value => {
-    doc.text(pdfText(value), margin + contentW/2 + 4, cy, { maxWidth: contentW/2 - 8 });
+    doc.text(pdfText(value), halfX, cy, { maxWidth: contentW/2 - 8 });
     cy += 4;
   });
 
@@ -432,7 +439,7 @@ async function generateQuotePdf({ quote, client, items, company }) {
       theme: 'grid',
       styles: { font:'helvetica', fontSize:5.7, cellPadding:1.15, textColor:dark, lineColor:line, lineWidth:.2, overflow:'linebreak', valign:'middle' },
       headStyles: { fillColor:[238,244,250], textColor:[65,86,111], fontStyle:'bold', fontSize:5.6 },
-      columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:34}, 2:{cellWidth:44}, 3:{cellWidth:31}, 4:{cellWidth:63} },
+      columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:35}, 2:{cellWidth:45}, 3:{cellWidth:32}, 4:{cellWidth:66} },
       didDrawPage: () => {}
     });
     y = doc.lastAutoTable.finalY + 4;
@@ -479,7 +486,7 @@ async function generateQuotePdf({ quote, client, items, company }) {
       theme: 'grid',
       styles: { font:'helvetica', fontSize:5.45, cellPadding:1.05, textColor:dark, lineColor:line, lineWidth:.2, overflow:'linebreak', valign:'middle' },
       headStyles: { fillColor:[238,244,250], textColor:[65,86,111], fontStyle:'bold', fontSize:5.25 },
-      columnStyles: { 0:{cellWidth:57}, 1:{cellWidth:10,halign:'center'}, 2:{cellWidth:30,halign:'right'}, 3:{cellWidth:27,halign:'right'}, 4:{cellWidth:29,halign:'right'}, 5:{cellWidth:31,halign:'right',fontStyle:'bold'} },
+      columnStyles: { 0:{cellWidth:58}, 1:{cellWidth:11,halign:'center'}, 2:{cellWidth:31,halign:'right'}, 3:{cellWidth:28,halign:'right'}, 4:{cellWidth:29,halign:'right'}, 5:{cellWidth:29,halign:'right',fontStyle:'bold'} },
       didDrawPage: () => {}
     });
     y = doc.lastAutoTable.finalY + 2.5;
@@ -487,12 +494,16 @@ async function generateQuotePdf({ quote, client, items, company }) {
     doc.setTextColor(...muted);
     doc.setFont('helvetica','normal');
     doc.setFontSize(5.8);
-    doc.text('Subtotal do serviço', W - margin - 28, y, { align:'right' });
+    // Subtotal alinhado ao mesmo eixo da coluna TOTAL, sem deslocamentos artificiais.
+    doc.setTextColor(...muted);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(5.8);
+    doc.text('Subtotal do serviço', W - margin - 34, y, { align:'right' });
     doc.setTextColor(...dark);
     doc.setFont('helvetica','bold');
     doc.setFontSize(6.4);
     doc.text(pdfMoney(subtotal), W - margin, y, { align:'right' });
-    y += 4;
+    y += 5; 
   });
 
   // Total
