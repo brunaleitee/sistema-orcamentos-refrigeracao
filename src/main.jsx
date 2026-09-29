@@ -148,7 +148,7 @@ function PageHead({ title, sub, action }) { return <div className="pagehead"><di
 
 function useQuotes(refresh) {
   const [quotes, setQuotes] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
-  useEffect(() => { let alive = true; (async () => { setLoading(true); const { data, error } = await supabase.from('refrig_quotes').select('*, refrig_clients(name, phone, whatsapp, email, address)').order('created_at', { ascending: false }); if (alive) { setQuotes(data || []); setError(error?.message || ''); setLoading(false); } })(); return () => { alive = false; }; }, [refresh]);
+  useEffect(() => { let alive = true; (async () => { setLoading(true); const { data, error } = await supabase.from('refrig_quotes').select('*, refrig_clients(name, document, phone, whatsapp, email, address)').order('created_at', { ascending: false }); if (alive) { setQuotes(data || []); setError(error?.message || ''); setLoading(false); } })(); return () => { alive = false; }; }, [refresh]);
   return { quotes, loading, error };
 }
 
@@ -189,7 +189,7 @@ function Quotes({ search, setSelected, go, refresh }) {
 
 
 function NewQuote({ go, quote = null }) {
-  const [client, setClient] = useState({ name:'', phone:'', whatsapp:'', email:'', address:'', notes:'' });
+  const [client, setClient] = useState({ name:'', document:'', phone:'', whatsapp:'', email:'', address:'', notes:'' });
   const [equipment, setEquipment] = useState([{ type:'', brand:'', model:'', capacity:'', observation:'' }]);
   const [items, setItems] = useState([{ equipmentIndex:0, service_name:'Lavagem completa', service_description:'', quantity:1, original:'', discount:'', final:'' }]);
   const [saving, setSaving] = useState(false); const [loadingEdit, setLoadingEdit] = useState(Boolean(quote)); const [error, setError] = useState('');
@@ -207,7 +207,8 @@ function NewQuote({ go, quote = null }) {
       if (itemError) { setError(itemError.message); setLoadingEdit(false); return; }
       const clientData = quote.refrig_clients || {};
       setClient({
-        name: clientData.name || '', phone: clientData.phone || '', whatsapp: clientData.whatsapp || '',
+        name: clientData.name || '', document: clientData.document || clientData.cpf_cnpj || clientData.cpf || clientData.cnpj || '',
+        phone: clientData.phone || '', whatsapp: clientData.whatsapp || '',
         email: clientData.email || '', address: clientData.address || '', notes: quote.notes || ''
       });
       const equipmentMap = new Map();
@@ -281,7 +282,7 @@ function NewQuote({ go, quote = null }) {
 
   if (loadingEdit) return <div className="content"><Loading label="Carregando orçamento..."/></div>;
   return <div className="content"><button className="back" onClick={() => go('quotes')}><ArrowLeft size={18}/> Voltar</button><PageHead title={quote ? `Editar ORC-${String(quote.quote_number).padStart(4,'0')}` : 'Criar orçamento'} sub="Monte uma proposta com serviços e valores por equipamento." action={<button className="primary" onClick={save} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} {quote?'Salvar alterações':'Salvar orçamento'}</button>}/>{error&&<div className="form-error">{error}</div>}
-    <section className="panel form-section"><div className="panel-head"><div><h2>1. Cliente</h2><p>Quem receberá o orçamento.</p></div></div><div className="form-grid">{[['name','Nome','text'],['phone','Telefone','text'],['whatsapp','WhatsApp','text'],['email','E-mail','email'],['address','Endereço','text']].map(([k,l,t])=><label key={k}>{l}<input type={t} value={client[k]} onChange={e=>setClient({...client,[k]:e.target.value})}/></label>)}</div><label>Observações<textarea value={client.notes} onChange={e=>setClient({...client,notes:e.target.value})}/></label></section>
+    <section className="panel form-section"><div className="panel-head"><div><h2>1. Cliente</h2><p>Quem receberá o orçamento.</p></div></div><div className="form-grid">{[['name','Nome','text'],['document','CPF / CNPJ','text'],['phone','Telefone','text'],['whatsapp','WhatsApp','text'],['email','E-mail','email'],['address','Endereço','text']].map(([k,l,t])=><label key={k}>{l}<input type={t} value={client[k]||''} onChange={e=>setClient({...client,[k]:e.target.value})} placeholder={k==='document'?'000.000.000-00 ou 00.000.000/0000-00':''}/></label>)}</div><label>Observações<textarea value={client.notes} onChange={e=>setClient({...client,notes:e.target.value})}/></label></section>
     <section className="panel form-section"><div className="panel-head"><div><h2>2. Equipamentos</h2><p>Cadastre cada equipamento que receberá serviço.</p></div><button className="secondary" onClick={addEquipment}><Plus size={16}/> Adicionar equipamento</button></div>{equipment.map((e,i)=><div className="equipment-form" key={e.id || i}><div className="mini-index">{String(i+1).padStart(2,'0')}</div><div className="form-grid equipment-fields"><label>Tipo*<input value={e.type} onChange={ev=>updateEquipment(i,'type',ev.target.value)} placeholder="Ex.: Piso-Teto"/></label><label>Marca<input value={e.brand} onChange={ev=>updateEquipment(i,'brand',ev.target.value)}/></label><label>Modelo<input value={e.model} onChange={ev=>updateEquipment(i,'model',ev.target.value)}/></label><label>Capacidade<input value={e.capacity} onChange={ev=>updateEquipment(i,'capacity',ev.target.value)} placeholder="60.000 BTU"/></label></div></div>)}</section>
     <section className="panel form-section"><div className="panel-head"><div><h2>3. Serviços</h2><p>O mesmo equipamento pode ter vários serviços e cada combinação tem seu próprio preço.</p></div><button className="secondary" onClick={addItem}><Plus size={16}/> Adicionar serviço</button></div>{items.map((it,i)=><div className="service-editor" key={it.id || i}><div className="service-editor-head"><strong>Serviço {String(i+1).padStart(2,'0')}</strong><button className="iconbtn" onClick={()=>setItems(items.filter((_,idx)=>idx!==i))} disabled={items.length===1}><Trash2 size={17}/></button></div><div className="form-grid"><label>Equipamento<select value={it.equipmentIndex} onChange={e=>updateItem(i,'equipmentIndex',Number(e.target.value))}>{equipment.map((e,idx)=><option key={e.id || idx} value={idx}>{idx+1}. {e.type||'Equipamento'}</option>)}</select></label><label>Serviço*<input value={it.service_name} onChange={e=>updateItem(i,'service_name',e.target.value)} placeholder="Lavagem completa"/></label><label>Quantidade<input type="number" min="1" value={it.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)}/></label><label>Valor original<input type="number" step="0.01" value={it.original} onChange={e=>updateItem(i,'original',e.target.value)}/></label><label>Desconto<input type="number" step="0.01" value={it.discount} onChange={e=>updateItem(i,'discount',e.target.value)}/></label><label>Valor final*<input type="number" step="0.01" value={it.final} onChange={e=>updateItem(i,'final',e.target.value)}/></label></div><div className="item-total">Total do item <strong>{money(Number(it.quantity||0)*Number(it.final||0))}</strong></div></div>)}</section>
     <section className="panel total-box"><span>Total do orçamento</span><strong>{money(total)}</strong></section>
@@ -357,7 +358,8 @@ async function generateQuotePdf({ quote, client, items, company }) {
   doc.line(margin, 25, W - margin, 25);
 
   // Cliente / contato — cada informação aparece uma única vez
-  const halfX = margin + contentW / 2 + 3;
+  const halfX = margin + contentW / 2 + 4;
+  const clientBlockW = contentW / 2 - 8;
   const clientDocument = client?.document || client?.cpf_cnpj || client?.cpf || client?.cnpj || '';
 
   doc.setTextColor(...blue);
@@ -366,31 +368,32 @@ async function generateQuotePdf({ quote, client, items, company }) {
   doc.text('CLIENTE', margin, 31);
   doc.text('CONTATO', halfX, 31);
 
-  // Divisor entre os dois blocos
+  // Divisor visual discreto entre os dois blocos
   doc.setDrawColor(219,234,254);
   doc.setLineWidth(0.7);
-  doc.line(margin + contentW/2, 31, margin + contentW/2, 47);
+  doc.line(margin + contentW/2, 30, margin + contentW/2, 47);
   doc.setLineWidth(0.2);
 
-  // Dados do cliente: nome, CPF/CNPJ e endereço
+  // CLIENTE: nome, CPF/CNPJ e endereço
   doc.setTextColor(...dark);
   doc.setFont('helvetica','bold');
   doc.setFontSize(7.5);
-  doc.text(pdfText(client.name), margin, 35);
+  doc.text(pdfText(client?.name || '—'), margin, 35, { maxWidth: clientBlockW });
 
   doc.setFont('helvetica','normal');
   doc.setTextColor(...muted);
   doc.setFontSize(6.5);
   let clientY = 39;
   if (clientDocument) {
-    doc.text(`CPF/CNPJ: ${pdfText(clientDocument)}`, margin, clientY, { maxWidth: contentW/2 - 8 });
+    doc.text(`CPF/CNPJ: ${pdfText(clientDocument)}`, margin, clientY, { maxWidth: clientBlockW });
     clientY += 4;
   }
-  if (client.address) {
-    doc.text(pdfText(client.address), margin, clientY, { maxWidth: contentW/2 - 8 });
+  if (client?.address) {
+    const addressLines = doc.splitTextToSize(pdfText(client.address), clientBlockW);
+    doc.text(addressLines.slice(0, 2), margin, clientY);
   }
 
-  // Dados de contato: telefone, WhatsApp e e-mail do cliente
+  // CONTATO: telefone, WhatsApp e e-mail — sem repetir no bloco CLIENTE
   const contactLines = [
     client?.phone ? `Telefone: ${client.phone}` : '',
     client?.whatsapp ? `WhatsApp: ${client.whatsapp}` : '',
@@ -399,7 +402,7 @@ async function generateQuotePdf({ quote, client, items, company }) {
 
   let cy = 35;
   contactLines.slice(0, 3).forEach(value => {
-    doc.text(pdfText(value), halfX, cy, { maxWidth: contentW/2 - 8 });
+    doc.text(pdfText(value), halfX, cy, { maxWidth: clientBlockW });
     cy += 4;
   });
 
@@ -621,7 +624,7 @@ function QuoteDetail({ quote, back, onChanged, onEdit }) {
     <button className="back" onClick={back}><ArrowLeft size={18}/> Voltar para orçamentos</button>
     <PageHead title={`ORC-${String(quote.quote_number).padStart(4,'0')}`} sub="Detalhes do orçamento" action={<div className="actions-menu-wrap"><button className="secondary actions-trigger" onClick={()=>setActionsOpen(v=>!v)}><MoreHorizontal size={18}/> Ações</button>{actionsOpen&&<div className="actions-menu"><button onClick={()=>{setActionsOpen(false);onEdit(quote);}}><Pencil size={16}/> Editar orçamento</button><button onClick={handlePdf} disabled={pdfLoading}>{pdfLoading?<LoaderCircle className="spin" size={16}/>:<Download size={16}/>} {pdfLoading?'Gerando PDF…':'Gerar PDF'}</button><button onClick={handleWhatsApp}><MessageCircle size={16}/> Enviar pelo WhatsApp</button><div className="actions-menu-divider"></div><button className="danger-action" onClick={handleDelete} disabled={deleting}><Trash2 size={16}/> {deleting?'Excluindo…':'Excluir orçamento'}</button></div>}</div>}/>
     <div className="detail-grid">
-      <section className="panel"><div className="panel-head"><div><h2>Cliente</h2><p>Dados do solicitante</p></div><Badge status={status}/></div><div className="info-grid"><Info icon={UserRound} label="Nome" value={client.name||'—'}/><Info icon={Phone} label="Telefone" value={client.phone||'—'}/><Info icon={MapPin} label="Endereço" value={client.address||'—'}/><Info icon={Mail} label="E-mail" value={client.email||'—'}/></div></section>
+      <section className="panel"><div className="panel-head"><div><h2>Cliente</h2><p>Dados do solicitante</p></div><Badge status={status}/></div><div className="info-grid"><Info icon={UserRound} label="Nome" value={client.name||'—'}/><Info icon={FileText} label="CPF / CNPJ" value={client.document||client.cpf_cnpj||client.cpf||client.cnpj||'—'}/><Info icon={Phone} label="Telefone" value={client.phone||'—'}/><Info icon={MessageCircle} label="WhatsApp" value={client.whatsapp||'—'}/><Info icon={MapPin} label="Endereço" value={client.address||'—'}/><Info icon={Mail} label="E-mail" value={client.email||'—'}/></div></section>
       <section className="panel"><div className="panel-head"><div><h2>Serviços</h2><p>Composição do orçamento</p></div></div>{items.map(i=><div className="service-line" key={i.id}><div><strong>{i.service_name}</strong><span>{i.quantity} × {i.refrig_equipment?.equipment_type || 'Equipamento'} {i.refrig_equipment?.capacity || ''}</span></div><strong>{money(Number(i.unit_final_value||0)*Number(i.quantity||1))}</strong></div>)}<div className="total"><span>Total</span><strong>{money(quote.total_final)}</strong></div></section>
     </div>
     <section className="panel"><div className="panel-head"><div><h2>Status</h2><p>Atualize o andamento do orçamento.</p></div></div><div className="status-actions">{[['aguardando_resposta','Aguardando resposta'],['aprovado','Aprovar'],['recusado','Recusar'],['em_andamento','Em andamento'],['concluido','Concluir']].map(([id,label])=><button key={id} className={status===id?'selected':''} disabled={saving} onClick={()=>changeStatus(id)}>{label}</button>)}</div></section>
@@ -638,7 +641,7 @@ function Finance({setSelected,refresh}) {
   return <div className="content finance-page"><PageHead title="Financeiro" sub="Acompanhe os valores dos serviços aprovados."/><div className="finance-cards"><div className="bigmetric"><span>Total aprovado</span><strong>{money(total)}</strong><small>Orçamentos aprovados, em andamento e concluídos.</small></div><div className="bigmetric"><span>Serviços aprovados</span><strong>{approved.length}</strong><small>Chamados vinculados ao orçamento.</small></div></div><div className="tablepanel finance-tablepanel"><div className="table-title"><div><h2>Movimentações</h2><p>Clique em um item para consultar o orçamento.</p></div></div>{loading?<Loading/>:<><table><thead><tr><th>Orçamento</th><th>Cliente</th><th>Data</th><th>Status</th><th>Valor</th></tr></thead><tbody>{approved.map(q=><tr key={q.id} onClick={()=>setSelected(q)}><td><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong></td><td>{q.refrig_clients?.name||'Cliente'}</td><td>{dateBR(q.issue_date)}</td><td><Badge status={q.status}/></td><td><strong>{money(q.total_final)}</strong></td></tr>)}</tbody></table><div className="finance-mobile-list">{approved.map(q=><div className="finance-mobile-card" key={q.id} onClick={()=>setSelected(q)}><div><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong><Badge status={q.status}/></div><h3>{q.refrig_clients?.name||'Cliente'}</h3><p>{dateBR(q.issue_date)}</p><strong>{money(q.total_final)}</strong></div>)}{!approved.length&&<Empty title="Nenhum orçamento aprovado" text="Os orçamentos aprovados aparecerão aqui."/>}</div></>}</div></div>;
 }
 
-function Tickets({setSelected,refresh}) { const [tickets,setTickets]=useState([]); const [loading,setLoading]=useState(true); useEffect(()=>{supabase.from('refrig_service_calls').select('*, refrig_quotes(*, refrig_clients(name))').order('created_at',{ascending:false}).then(({data})=>{setTickets(data||[]);setLoading(false);});},[refresh]); return <div className="content"><PageHead title="Chamados" sub="Serviços aprovados e em execução."/><div className="ticket-filters"><button className="selected">Todos <b>{tickets.length}</b></button><button>Aprovados</button><button>Em andamento</button><button>Concluídos</button></div>{loading?<Loading/>:<div className="ticket-list">{tickets.map(t=><div className="ticket" key={t.id} onClick={()=>t.refrig_quotes&&setSelected(t.refrig_quotes)}><div className="ticket-num">CH-{String(t.call_number).padStart(4,'0')}</div><div className="grow"><strong>{t.refrig_quotes?.refrig_clients?.name||'Cliente'}</strong><span>ORC-{String(t.refrig_quotes?.quote_number||0).padStart(4,'0')}</span></div><strong>{money(t.refrig_quotes?.total_final)}</strong><Badge status={t.status==='aprovado'?'aprovado':t.status}/><ChevronRight size={18}/></div>)}{!tickets.length&&<Empty title="Nenhum chamado ainda" text="Um chamado será criado automaticamente quando um orçamento for aprovado."/>}</div>}</div> }
+function Tickets({setSelected,refresh}) { const [tickets,setTickets]=useState([]); const [loading,setLoading]=useState(true); useEffect(()=>{supabase.from('refrig_service_calls').select('*, refrig_quotes(*, refrig_clients(name, document, phone, whatsapp, email, address))').order('created_at',{ascending:false}).then(({data})=>{setTickets(data||[]);setLoading(false);});},[refresh]); return <div className="content"><PageHead title="Chamados" sub="Serviços aprovados e em execução."/><div className="ticket-filters"><button className="selected">Todos <b>{tickets.length}</b></button><button>Aprovados</button><button>Em andamento</button><button>Concluídos</button></div>{loading?<Loading/>:<div className="ticket-list">{tickets.map(t=><div className="ticket" key={t.id} onClick={()=>t.refrig_quotes&&setSelected(t.refrig_quotes)}><div className="ticket-num">CH-{String(t.call_number).padStart(4,'0')}</div><div className="grow"><strong>{t.refrig_quotes?.refrig_clients?.name||'Cliente'}</strong><span>ORC-{String(t.refrig_quotes?.quote_number||0).padStart(4,'0')}</span></div><strong>{money(t.refrig_quotes?.total_final)}</strong><Badge status={t.status==='aprovado'?'aprovado':t.status}/><ChevronRight size={18}/></div>)}{!tickets.length&&<Empty title="Nenhum chamado ainda" text="Um chamado será criado automaticamente quando um orçamento for aprovado."/>}</div>}</div> }
 
 function SettingsPage({refresh}) {
   const [company,setCompany]=useState({company_name:DEFAULT_COMPANY_NAME,document:'',phone:'',whatsapp:'',email:'',address:''});
