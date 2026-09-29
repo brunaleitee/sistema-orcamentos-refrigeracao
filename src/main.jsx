@@ -1,25 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  LayoutDashboard, FileText, Wallet, ClipboardList, Settings, LogOut,
-  Menu, X, Plus, Search, ChevronRight, Clock3, CheckCircle2,
-  PlayCircle, PackageCheck, Eye, Pencil, Copy, Trash2, SlidersHorizontal,
-  UserRound, Building2, Phone, MapPin, Mail, ArrowLeft, Download,
-  MessageCircle, Share2, AlertCircle, LoaderCircle, Save, UserPlus, LockKeyhole,
-  RefreshCw, BookOpen, Wrench, Check, XCircle
+  LayoutDashboard, FileText, Wallet, ClipboardList, Settings, LogOut, Menu, X, Plus, Search,
+  ChevronRight, Clock3, CheckCircle2, PlayCircle, PackageCheck, MoreHorizontal, Eye, Pencil,
+  Copy, Trash2, SlidersHorizontal, UserRound, Building2, Phone, MapPin, Mail, ArrowLeft,
+  Download, MessageCircle, Share2, AlertCircle, LoaderCircle, Save, UserPlus, LockKeyhole, RefreshCw, Wrench, PlusCircle
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import './styles.css';
-
-const DEFAULT_COMPANY_NAME = 'Daniel Alves';
-const DEFAULT_COMPANY_SUBTITLE = 'Refrigeração';
 
 const nav = [
   ['home', 'Início', LayoutDashboard],
   ['quotes', 'Orçamentos', FileText],
   ['finance', 'Financeiro', Wallet],
   ['tickets', 'Chamados', ClipboardList],
-  ['catalog', 'Catálogo de serviços', BookOpen],
+  ['catalog', 'Catálogo de serviços', Wrench],
   ['settings', 'Configurações', Settings],
 ];
 
@@ -31,118 +26,64 @@ const statusLabel = {
   concluido: 'Concluído',
 };
 
-const categories = [
-  'Limpeza e Higienização',
-  'Manutenção',
-  'Gás Refrigerante',
-  'Instalação',
-  'Retirada / Mudança',
-  'Reparos',
-  'Visita Técnica'
+const money = (v = 0) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const dateBR = (v) => v ? new Date(`${v}T12:00:00`).toLocaleDateString('pt-BR') : '—';
+const DEFAULT_COMPANY_NAME = 'Daniel Alves';
+const DEFAULT_COMPANY_SUBTITLE = 'Refrigeração';
+
+function safeFileName(value = '') {
+  return String(value || 'Cliente').trim().replace(/[\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').replace(/^-+|-+$/g, '') || 'Cliente';
+}
+
+function whatsappNumber(value = '') {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function displayCompanyName(value = '') {
+  const name = String(value || '').trim();
+  return !name || /frios\s*&\s*clima/i.test(name) ? DEFAULT_COMPANY_NAME : name;
+}
+
+const DEFAULT_SERVICE_CATALOG = [
+  { name:'Lavagem completa', category:'Limpeza e Higienização', description:'Lavagem completa de ar-condicionado', included:'Lavagem da evaporadora\nLavagem da condensadora\nLimpeza geral dos componentes externos\nHigienização do equipamento', default_price:400 },
+  { name:'Limpeza', category:'Limpeza e Higienização', description:'Limpeza de ar-condicionado', included:'Limpeza do equipamento\nLimpeza dos filtros\nLimpeza geral dos componentes', default_price:0 },
+  { name:'Higienização', category:'Limpeza e Higienização', description:'Higienização de ar-condicionado', included:'Higienização do equipamento\nLimpeza de componentes internos', default_price:0 },
+  { name:'Lavagem química', category:'Limpeza e Higienização', description:'Lavagem química de ar-condicionado', included:'Aplicação de produto adequado\nLimpeza profunda dos componentes\nHigienização do equipamento', default_price:0 },
+  { name:'Manutenção preventiva', category:'Manutenção', description:'Manutenção preventiva de ar-condicionado', included:'Inspeção geral\nLimpeza dos componentes\nVerificação de funcionamento', default_price:0 },
+  { name:'Manutenção corretiva', category:'Manutenção', description:'Manutenção corretiva de ar-condicionado', included:'Diagnóstico do equipamento\nIdentificação da falha\nCorreção do problema conforme necessidade', default_price:0 },
+  { name:'Visita técnica', category:'Visita Técnica', description:'Visita técnica', included:'Deslocamento até o local\nAvaliação inicial do equipamento', default_price:0 },
+  { name:'Carga de gás', category:'Gás Refrigerante', description:'Carga de gás refrigerante', included:'Verificação do sistema\nCarga de gás conforme necessidade\nTeste de funcionamento', default_price:0 },
+  { name:'Teste de vazamento', category:'Gás Refrigerante', description:'Teste de vazamento do sistema', included:'Inspeção das conexões\nTeste de vazamento\nIdentificação do ponto de fuga', default_price:0 },
+  { name:'Reparo de vazamento', category:'Gás Refrigerante', description:'Reparo de vazamento de gás', included:'Identificação do vazamento\nReparo do ponto de fuga\nTeste do sistema', default_price:0 },
+  { name:'Instalação', category:'Instalação', description:'Instalação de ar-condicionado', included:'Fixação do equipamento\nConexões e drenagem\nTeste de funcionamento', default_price:0 },
+  { name:'Desinstalação', category:'Retirada / Mudança', description:'Desinstalação de ar-condicionado', included:'Desligamento do equipamento\nRetirada técnica\nOrganização do local', default_price:0 },
+  { name:'Reinstalação', category:'Instalação', description:'Reinstalação de ar-condicionado', included:'Instalação do equipamento\nConexões e drenagem\nTeste de funcionamento', default_price:0 },
+  { name:'Reparo', category:'Reparos', description:'Reparo de ar-condicionado', included:'Diagnóstico\nReparo do componente necessário\nTeste de funcionamento', default_price:0 },
 ];
 
+const serviceCategories = ['Limpeza e Higienização','Manutenção','Gás Refrigerante','Instalação','Retirada / Mudança','Reparos','Visita Técnica','Outros'];
 const categoryLabels = {
-  'Limpeza e Higienização': 'Limpar',
-  'Manutenção': 'Fazer manutenção',
-  'Gás Refrigerante': 'Colocar gás',
-  'Instalação': 'Instalar',
-  'Retirada / Mudança': 'Retirar / mudar',
-  'Reparos': 'Consertar',
-  'Visita Técnica': 'Avaliar problema'
+  'Limpeza e Higienização':'Limpar',
+  'Manutenção':'Fazer manutenção',
+  'Gás Refrigerante':'Colocar gás',
+  'Instalação':'Instalar',
+  'Retirada / Mudança':'Retirar / mudar',
+  'Reparos':'Consertar',
+  'Visita Técnica':'Avaliar problema',
+  'Outros':'Outros'
 };
-
 const categoryLabel = (category) => categoryLabels[category] || category;
 
-const money = (v = 0) =>
-  Number(v || 0).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  });
 
-const dateBR = (v) =>
-  v ? new Date(`${v}T12:00:00`).toLocaleDateString('pt-BR') : '—';
-
-const code = (prefix, n) =>
-  `${prefix}-${String(n || 0).padStart(4, '0')}`;
-
-const displayCompanyName = (value) => {
-  const name = String(value || '').trim();
-  if (!name || /frios\s*&\s*clima/i.test(name)) return DEFAULT_COMPANY_NAME;
-  return name;
-};
-
-const whatsappNumber = (value = '') => {
-  let number = String(value || '').replace(/\D/g, '');
-  if (number.startsWith('00')) number = number.slice(2);
-  if (number.startsWith('0')) number = number.slice(1);
-  if (number.length === 10 || number.length === 11) number = `55${number}`;
-  return number;
-};
 
 function Badge({ status }) {
-  return (
-    <span className={`badge ${status || ''}`}>
-      <i />
-      {statusLabel[status] || status || '—'}
-    </span>
-  );
+  const label = statusLabel[status] || status;
+  return <span className={`badge ${status}`}><i /> {label}</span>;
 }
 
 function Loading({ label = 'Carregando...' }) {
-  return (
-    <div className="loading">
-      <LoaderCircle className="spin" size={22} />
-      {label}
-    </div>
-  );
+  return <div className="loading"><LoaderCircle className="spin" size={22} /> {label}</div>;
 }
-
-function Empty({ title, text }) {
-  return (
-    <div className="empty">
-      <strong>{title}</strong>
-      <span>{text}</span>
-    </div>
-  );
-}
-
-function PageHead({ title, sub, action }) {
-  return (
-    <div className="pagehead">
-      <div>
-        <h1>{title}</h1>
-        <p>{sub}</p>
-      </div>
-      {action}
-    </div>
-  );
-}
-
-function Stat({ icon: Icon, label, value, tone }) {
-  return (
-    <div className="stat">
-      <div className={`stat-icon ${tone}`}><Icon size={20} /></div>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-      </div>
-    </div>
-  );
-}
-
-function Info({ icon: Icon, label, value }) {
-  return (
-    <div className="info">
-      <Icon size={17} />
-      <div>
-        <small>{label}</small>
-        <span>{value || '—'}</span>
-      </div>
-    </div>
-  );
-}
-
-/* ========================= AUTH ========================= */
 
 function Auth({ onAuth }) {
   const [mode, setMode] = useState('login');
@@ -150,123 +91,51 @@ function Auth({ onAuth }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   async function submit(e) {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    setMessage('');
-
+    setLoading(true); setError(''); setMessage('');
     try {
       if (mode === 'login') {
-        const { data, error } =
-          await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+        if (err) throw err;
         onAuth(data.session);
       } else if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: name } }
-        });
-        if (error) throw error;
-        if (!data.session) {
-          setMessage('Cadastro criado. Verifique seu e-mail para confirmar o acesso.');
-        } else {
-          onAuth(data.session);
-        }
+        const { data, error: err } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+        if (err) throw err;
+        if (!data.session) setMessage('Cadastro criado. Verifique seu e-mail para confirmar o acesso.');
+        else onAuth(data.session);
       } else {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin
-        });
-        if (error) throw error;
+        const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+        if (err) throw err;
         setMessage('Enviamos um link de recuperação para seu e-mail.');
       }
     } catch (err) {
       setError(err.message || 'Não foi possível concluir a operação.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
-  return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div className="auth-brand">
-          <div className="brandmark">D</div>
-          <div>
-            <strong>{DEFAULT_COMPANY_NAME}</strong>
-            <small>{DEFAULT_COMPANY_SUBTITLE}</small>
-          </div>
-        </div>
-
-        <div className="auth-copy">
-          <h1>
-            {mode === 'login' ? 'Bem-vindo de volta' :
-              mode === 'signup' ? 'Criar acesso' : 'Recuperar senha'}
-          </h1>
-          <p>
-            {mode === 'login'
-              ? 'Entre para acompanhar seus orçamentos e serviços.'
-              : mode === 'signup'
-                ? 'Crie o acesso do responsável pelo sistema.'
-                : 'Informe seu e-mail para receber o link de recuperação.'}
-          </p>
-        </div>
-
-        <form onSubmit={submit} className="auth-form">
-          {mode === 'signup' && (
-            <label>Nome
-              <input value={name} onChange={e => setName(e.target.value)}
-                placeholder="Nome do responsável" required />
-            </label>
-          )}
-
-          <label>E-mail
-            <input type="email" value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="seu@email.com" required />
-          </label>
-
-          {mode !== 'reset' && (
-            <label>Senha
-              <input type="password" value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Mínimo de 6 caracteres"
-                minLength={6} required />
-            </label>
-          )}
-
-          {error && <div className="form-error">{error}</div>}
-          {message && <div className="form-success">{message}</div>}
-
-          <button className="primary full" disabled={loading}>
-            {loading ? <LoaderCircle className="spin" size={18} /> : <LockKeyhole size={18} />}
-            {mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Criar conta' : 'Enviar link'}
-          </button>
-        </form>
-
-        <div className="auth-links">
-          {mode === 'login' ? (
-            <>
-              <button onClick={() => setMode('reset')}>Esqueci minha senha</button>
-              <span>·</span>
-              <button onClick={() => setMode('signup')}>Criar conta</button>
-            </>
-          ) : (
-            <button onClick={() => { setMode('login'); setError(''); setMessage(''); }}>
-              Voltar para login
-            </button>
-          )}
-        </div>
+  return <div className="auth-page">
+    <div className="auth-card">
+      <div className="auth-brand"><div className="brandmark">D</div><div><strong>{DEFAULT_COMPANY_NAME}</strong><small>{DEFAULT_COMPANY_SUBTITLE}</small></div></div>
+      <div className="auth-copy"><h1>{mode === 'login' ? 'Bem-vindo de volta' : mode === 'signup' ? 'Criar acesso' : 'Recuperar senha'}</h1><p>{mode === 'login' ? 'Entre para acompanhar seus orçamentos e serviços.' : mode === 'signup' ? 'Crie o acesso do responsável pelo sistema.' : 'Informe seu e-mail para receber o link de recuperação.'}</p></div>
+      <form onSubmit={submit} className="auth-form">
+        {mode === 'signup' && <label>Nome<input value={name} onChange={e => setName(e.target.value)} placeholder="Nome do responsável" required /></label>}
+        <label>E-mail<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required /></label>
+        {mode !== 'reset' && <label>Senha<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" minLength={6} required /></label>}
+        {error && <div className="form-error">{error}</div>}
+        {message && <div className="form-success">{message}</div>}
+        <button className="primary full" disabled={loading}>{loading ? <LoaderCircle className="spin" size={18} /> : <LockKeyhole size={18} />}{mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Criar conta' : 'Enviar link'}</button>
+      </form>
+      <div className="auth-links">
+        {mode === 'login' && <><button onClick={() => setMode('reset')}>Esqueci minha senha</button><span>·</span><button onClick={() => setMode('signup')}>Criar conta</button></>}
+        {mode !== 'login' && <button onClick={() => { setMode('login'); setError(''); setMessage(''); }}>Voltar para login</button>}
       </div>
     </div>
-  );
+  </div>;
 }
-
-/* ========================= APP ========================= */
 
 function App() {
   const [session, setSession] = useState(null);
@@ -274,1403 +143,276 @@ function App() {
   const [page, setPage] = useState('home');
   const [mobile, setMobile] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [editingQuote, setEditingQuote] = useState(null);
   const [search, setSearch] = useState('');
   const [refresh, setRefresh] = useState(0);
-  const [companyName, setCompanyName] = useState(DEFAULT_COMPANY_NAME);
+  const [editingQuote, setEditingQuote] = useState(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      setChecking(false);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, next) => setSession(next)
-    );
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
+    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setChecking(false); });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => listener.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    supabase
-      .from('refrig_company')
-      .select('company_name')
-      .eq('owner_id', session.user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setCompanyName(displayCompanyName(data?.company_name));
-      });
-  }, [session, refresh]);
-
-  const go = (next) => {
-    setPage(next);
-    setSelected(null);
-    setEditingQuote(null);
-    setMobile(false);
-  };
-
-  const openQuote = (quote) => {
-    setSelected(quote);
-    setEditingQuote(null);
-    setMobile(false);
-  };
-
-  const editQuote = (quote) => {
-    setEditingQuote(quote);
-    setSelected(null);
-    setPage('editQuote');
-    setMobile(false);
-  };
-
+  const go = (p) => { setPage(p); setSelected(null); setEditingQuote(null); setMobile(false); };
+  const openEdit = (quote) => { setEditingQuote(quote); setSelected(null); setPage('editQuote'); setMobile(false); };
   const refreshData = () => setRefresh(v => v + 1);
 
   if (checking) return <Loading label="Conectando..." />;
   if (!session) return <Auth onAuth={setSession} />;
 
-  return (
-    <div className="app">
-      <aside className={`sidebar ${mobile ? 'open' : ''}`}>
-        <div className="brand">
-          <div className="brandmark">D</div>
-          <div>
-            <strong>{companyName}</strong>
-            <small>{DEFAULT_COMPANY_SUBTITLE}</small>
-          </div>
-          <button className="close" onClick={() => setMobile(false)}>
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="profile">
-          <div className="avatar">
-            {(session.user.user_metadata?.full_name || 'DA')
-              .split(' ').map(x => x[0]).slice(0, 2).join('').toUpperCase()}
-          </div>
-          <div>
-            <strong>{session.user.user_metadata?.full_name || 'Administrador'}</strong>
-            <small>Administrador</small>
-          </div>
-        </div>
-
-        <nav>
-          {nav.map(([id, label, Icon]) => (
-            <button
-              key={id}
-              className={page === id && !selected ? 'active' : ''}
-              onClick={() => go(id)}
-            >
-              <Icon size={19} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-bottom">
-          <button onClick={() => supabase.auth.signOut()}>
-            <LogOut size={18} /> Sair
-          </button>
-        </div>
-      </aside>
-
-      {mobile && <div className="overlay" onClick={() => setMobile(false)} />}
-
-      <main className="main">
-        <header>
-          <button className="menu" onClick={() => setMobile(true)}>
-            <Menu />
-          </button>
-          <div className="header-search">
-            <Search size={18} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar orçamento, cliente..."
-            />
-          </div>
-        </header>
-
-        {selected ? (
-          <QuoteDetail
-            quote={selected}
-            back={() => setSelected(null)}
-            onChanged={refreshData}
-            onEdit={editQuote}
-          />
-        ) : page === 'newQuote' || page === 'editQuote' ? (
-          <NewQuote
-            go={go}
-            refresh={refreshData}
-            quote={editingQuote}
-          />
-        ) : page === 'home' ? (
-          <Home go={go} setSelected={openQuote} refresh={refresh} />
-        ) : page === 'quotes' ? (
-          <Quotes search={search} setSelected={openQuote}
-            go={go} refresh={refresh} onEdit={editQuote} />
-        ) : page === 'finance' ? (
-          <Finance setSelected={openQuote} refresh={refresh} />
-        ) : page === 'tickets' ? (
-          <Tickets setSelected={openQuote} refresh={refresh} />
-        ) : page === 'catalog' ? (
-          <ServiceCatalog refresh={refreshData} />
-        ) : (
-          <SettingsPage refresh={refreshData} />
-        )}
-      </main>
-    </div>
-  );
+  return <div className="app">
+    <aside className={`sidebar ${mobile ? 'open' : ''}`}>
+      <div className="brand"><div className="brandmark">D</div><div><strong>{DEFAULT_COMPANY_NAME}</strong><small>{DEFAULT_COMPANY_SUBTITLE}</small></div><button className="close" onClick={() => setMobile(false)}><X size={20}/></button></div>
+      <nav>{nav.map(([id, label, Icon]) => <button key={id} className={page === id && !selected ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/><span>{label}</span></button>)}</nav>
+      <div className="sidebar-bottom"><button onClick={() => supabase.auth.signOut()}><LogOut size={18}/> Sair</button></div>
+    </aside>
+    {mobile && <div className="overlay" onClick={() => setMobile(false)} />}
+    <main className="main">
+      <header><button className="menu" onClick={() => setMobile(true)}><Menu/></button><div className="header-search"><Search size={18}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar orçamento, cliente..."/></div></header>
+      {selected ? <QuoteDetail quote={selected} back={() => setSelected(null)} onChanged={refreshData} onEdit={openEdit} /> : page === 'newQuote' ? <NewQuote go={go} /> : page === 'editQuote' ? <NewQuote go={go} quote={editingQuote} /> : page === 'home' ? <Home go={go} setSelected={setSelected} refresh={refresh} /> : page === 'quotes' ? <Quotes search={search} setSelected={setSelected} go={go} refresh={refresh} /> : page === 'finance' ? <Finance setSelected={setSelected} refresh={refresh} /> : page === 'tickets' ? <Tickets setSelected={setSelected} refresh={refresh} /> : page === 'catalog' ? <ServiceCatalog refresh={refreshData} /> : <SettingsPage refresh={refreshData} />}
+    </main>
+  </div>;
 }
 
-/* ========================= DATA ========================= */
+function PageHead({ title, sub, action }) { return <div className="pagehead"><div><h1>{title}</h1><p>{sub}</p></div>{action}</div>; }
 
 function useQuotes(refresh) {
-  const [quotes, setQuotes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    let alive = true;
-
-    (async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('refrig_quotes')
-        .select(`
-          *,
-          refrig_clients(name, document, phone, whatsapp, email, address)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (alive) {
-        setQuotes(data || []);
-        setError(error?.message || '');
-        setLoading(false);
-      }
-    })();
-
-    return () => { alive = false; };
-  }, [refresh]);
-
+  const [quotes, setQuotes] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
+  useEffect(() => { let alive = true; (async () => { setLoading(true); const { data, error } = await supabase.from('refrig_quotes').select('*, refrig_clients(name, document, phone, whatsapp, email, address)').order('created_at', { ascending: false }); if (alive) { setQuotes(data || []); setError(error?.message || ''); setLoading(false); } })(); return () => { alive = false; }; }, [refresh]);
   return { quotes, loading, error };
 }
 
-/* ========================= HOME ========================= */
-
 function Home({ go, setSelected, refresh }) {
   const { quotes, loading, error } = useQuotes(refresh);
-
   const counts = useMemo(() => ({
     aguardando_resposta: quotes.filter(q => q.status === 'aguardando_resposta').length,
     aprovado: quotes.filter(q => q.status === 'aprovado').length,
     em_andamento: quotes.filter(q => q.status === 'em_andamento').length,
     concluido: quotes.filter(q => q.status === 'concluido').length,
   }), [quotes]);
-
-  const attention = quotes
-    .filter(q => q.status === 'aguardando_resposta')
-    .slice(0, 5);
-
-  const approved = quotes.filter(q =>
-    ['aprovado', 'em_andamento', 'concluido'].includes(q.status)
-  );
-
-  const total = approved.reduce(
-    (sum, q) => sum + Number(q.total_final || 0), 0
-  );
-
-  return (
-    <div className="content">
-      <PageHead
-        title={`Olá, ${DEFAULT_COMPANY_NAME} 👋`}
-        sub="Acompanhe seus orçamentos e serviços de hoje."
-        action={
-          <button className="primary" onClick={() => go('newQuote')}>
-            <Plus size={18} /> Novo orçamento
-          </button>
-        }
-      />
-
-      {error && <div className="form-error">{error}</div>}
-
-      <div className="stats">
-        <Stat icon={Clock3} label="Aguardando resposta"
-          value={String(counts.aguardando_resposta).padStart(2, '0')} tone="orange" />
-        <Stat icon={CheckCircle2} label="Aprovados"
-          value={String(counts.aprovado).padStart(2, '0')} tone="green" />
-        <Stat icon={PlayCircle} label="Em andamento"
-          value={String(counts.em_andamento).padStart(2, '0')} tone="blue" />
-        <Stat icon={PackageCheck} label="Concluídos"
-          value={String(counts.concluido).padStart(2, '0')} tone="purple" />
-      </div>
-
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Orçamentos que precisam de atenção</h2>
-            <p>Acompanhe os clientes que ainda não responderam.</p>
-          </div>
-          <button className="link" onClick={() => go('quotes')}>
-            Ver todos <ChevronRight size={16} />
-          </button>
-        </div>
-
-        {loading ? <Loading /> : attention.length ? (
-          attention.map(q => (
-            <div className="attention" key={q.id}>
-              <div className="attention-icon"><AlertCircle size={20} /></div>
-              <div className="grow">
-                <strong>{code('ORC', q.quote_number)} · {q.refrig_clients?.name || 'Cliente'}</strong>
-                <span>Criado em {dateBR(q.issue_date)}</span>
-              </div>
-              <strong>{money(q.total_final)}</strong>
-              <Badge status={q.status} />
-              <button className="iconbtn" onClick={() => setSelected(q)}>
-                <Eye size={18} />
-              </button>
-            </div>
-          ))
-        ) : (
-          <Empty
-            title="Nenhum orçamento aguardando resposta"
-            text="Quando você enviar uma proposta, ela aparecerá aqui."
-          />
-        )}
-      </section>
-
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Resumo financeiro</h2>
-            <p>Valores dos orçamentos aprovados, em andamento e concluídos.</p>
-          </div>
-          <button className="link" onClick={() => go('finance')}>
-            Ver financeiro <ChevronRight size={16} />
-          </button>
-        </div>
-
-        <div className="finance-summary">
-          <div><span>Total aprovado</span><strong>{money(total)}</strong></div>
-          <div><span>Serviços aprovados</span><strong>{approved.length}</strong></div>
-          <div>
-            <span>Ticket médio</span>
-            <strong>{money(approved.length ? total / approved.length : 0)}</strong>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
+  const attention = quotes.filter(q => q.status === 'aguardando_resposta').slice(0, 5);
+  const approved = quotes.filter(q => ['aprovado', 'em_andamento', 'concluido'].includes(q.status));
+  const total = approved.reduce((a, q) => a + Number(q.total_final || 0), 0);
+  return <div className="content"><PageHead title={`Olá, ${DEFAULT_COMPANY_NAME} 👋`} sub="Acompanhe seus orçamentos e serviços de hoje." action={<button className="primary" onClick={() => go('newQuote')}><Plus size={18}/> Novo orçamento</button>}/>
+    {error && <div className="form-error">{error}</div>}
+    <div className="stats"><Stat icon={Clock3} label="Aguardando resposta" value={String(counts.aguardando_resposta).padStart(2,'0')} tone="orange"/><Stat icon={CheckCircle2} label="Aprovados" value={String(counts.aprovado).padStart(2,'0')} tone="green"/><Stat icon={PlayCircle} label="Em andamento" value={String(counts.em_andamento).padStart(2,'0')} tone="blue"/><Stat icon={PackageCheck} label="Concluídos" value={String(counts.concluido).padStart(2,'0')} tone="purple"/></div>
+    <section className="panel"><div className="panel-head"><div><h2>Orçamentos que precisam de atenção</h2><p>Acompanhe os clientes que ainda não responderam.</p></div><button className="link" onClick={() => go('quotes')}>Ver todos <ChevronRight size={16}/></button></div>
+      {loading ? <Loading/> : attention.length ? attention.map(q => <div className="attention" key={q.id}><div className="attention-icon"><AlertCircle size={20}/></div><div className="grow"><strong>ORC-{String(q.quote_number).padStart(4,'0')} · {q.refrig_clients?.name || 'Cliente'}</strong><span>{q.refrig_quote_items?.[0]?.service_name || 'Serviço'} · criado em {dateBR(q.issue_date)}</span></div><strong>{money(q.total_final)}</strong><Badge status={q.status}/><button className="iconbtn" onClick={() => setSelected(q)}><Eye size={18}/></button></div>) : <Empty title="Nenhum orçamento aguardando resposta" text="Quando você enviar uma proposta, ela aparecerá aqui."/>}
+    </section>
+    <section className="panel"><div className="panel-head"><div><h2>Resumo financeiro</h2><p>Valores dos orçamentos aprovados, em andamento e concluídos.</p></div><button className="link" onClick={() => go('finance')}>Ver financeiro <ChevronRight size={16}/></button></div><div className="finance-summary"><div><span>Total aprovado</span><strong>{money(total)}</strong></div><div><span>Serviços aprovados</span><strong>{approved.length}</strong></div><div><span>Ticket médio</span><strong>{money(approved.length ? total / approved.length : 0)}</strong></div></div></section>
+  </div>;
 }
 
-function PageHeadSpacer() { return null; }
+function Stat({ icon: Icon, label, value, tone }) { return <div className="stat"><div className={`stat-icon ${tone}`}><Icon size={20}/></div><div><span>{label}</span><strong>{value}</strong></div></div>; }
+function Empty({ title, text }) { return <div className="empty"><strong>{title}</strong><span>{text}</span></div>; }
 
-function StatPlaceholder() { return null; }
-
-function EmptyPlaceholder() { return null; }
-
-/* ========================= ORÇAMENTOS ========================= */
-
-function Quotes({ search, setSelected, go, refresh, onEdit }) {
-  const { quotes, loading, error } = useQuotes(refresh);
-  const [filter, setFilter] = useState('todos');
-
-  const filtered = quotes.filter(q => {
-    const matchesStatus = filter === 'todos' || q.status === filter;
-    const text = `${q.quote_number} ${q.refrig_clients?.name || ''} ${q.status || ''}`.toLowerCase();
-    return matchesStatus && text.includes(search.toLowerCase());
-  });
-
-  return (
-    <div className="content">
-      <PageHead
-        title="Orçamentos"
-        sub="Crie, acompanhe e organize suas propostas."
-        action={
-          <button className="primary" onClick={() => go('newQuote')}>
-            <Plus size={18} /> Novo orçamento
-          </button>
-        }
-      />
-
-      {error && <div className="form-error">{error}</div>}
-
-      <div className="toolbar">
-        <div className="tabs">
-          {[
-            ['todos', 'Todos'],
-            ['aguardando_resposta', 'Aguardando'],
-            ['aprovado', 'Aprovados'],
-            ['em_andamento', 'Em andamento'],
-            ['concluido', 'Concluídos'],
-            ['recusado', 'Recusados']
-          ].map(([id, label]) => (
-            <button key={id}
-              className={filter === id ? 'selected' : ''}
-              onClick={() => setFilter(id)}>
-              {label}
-              <b>{id === 'todos'
-                ? quotes.length
-                : quotes.filter(q => q.status === id).length}</b>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading ? <Loading /> : (
-        <>
-          <div className="tablepanel">
-            <table>
-              <thead>
-                <tr>
-                  <th>Orçamento</th>
-                  <th>Cliente</th>
-                  <th>Data</th>
-                  <th>Valor</th>
-                  <th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(q => (
-                  <tr key={q.id}>
-                    <td><strong>{code('ORC', q.quote_number)}</strong></td>
-                    <td>{q.refrig_clients?.name || 'Cliente'}</td>
-                    <td>{dateBR(q.issue_date)}</td>
-                    <td><strong>{money(q.total_final)}</strong></td>
-                    <td><Badge status={q.status} /></td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="secondary small"
-                          onClick={() => setSelected(q)}>
-                          <Eye size={15} /> Ver
-                        </button>
-                        <button className="secondary small"
-                          onClick={() => onEdit(q)}>
-                          <Pencil size={15} /> Editar
-                        </button>
-                        <button className="danger small"
-                          onClick={() => deleteQuote(q, refresh)}>
-                          <Trash2 size={15} /> Excluir
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {!filtered.length && (
-              <Empty
-                title="Nenhum orçamento encontrado"
-                text="Crie seu primeiro orçamento para começar."
-              />
-            )}
-          </div>
-
-          <div className="mobile-cards">
-            {filtered.map(q => (
-              <div className="quote-card" key={q.id}>
-                <div>
-                  <strong>{code('ORC', q.quote_number)}</strong>
-                  <Badge status={q.status} />
-                </div>
-                <h3>{q.refrig_clients?.name || 'Cliente'}</h3>
-                <p>{dateBR(q.issue_date)}</p>
-                <strong>{money(q.total_final)}</strong>
-                <div className="row-actions">
-                  <button className="secondary small" onClick={() => setSelected(q)}>
-                    <Eye size={15} /> Ver
-                  </button>
-                  <button className="secondary small" onClick={() => onEdit(q)}>
-                    <Pencil size={15} /> Editar
-                  </button>
-                  <button className="danger small" onClick={() => deleteQuote(q, refresh)}>
-                    <Trash2 size={15} /> Excluir
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
+function Quotes({ search, setSelected, go, refresh }) {
+  const { quotes, loading, error } = useQuotes(refresh); const [filter, setFilter] = useState('todos');
+  const filtered = quotes.filter(q => (filter === 'todos' || q.status === filter) && `${q.quote_number} ${q.refrig_clients?.name || ''} ${q.status}`.toLowerCase().includes(search.toLowerCase()));
+  return <div className="content"><PageHead title="Orçamentos" sub="Crie, acompanhe e organize suas propostas." action={<button className="primary" onClick={() => go('newQuote')}><Plus size={18}/> Novo orçamento</button>}/>
+    {error && <div className="form-error">{error}</div>}
+    <div className="toolbar"><div className="tabs">{[['todos','Todos'],['aguardando_resposta','Aguardando'],['aprovado','Aprovados'],['em_andamento','Em andamento'],['concluido','Concluídos'],['recusado','Recusados']].map(([id,label]) => <button key={id} className={filter === id ? 'selected' : ''} onClick={() => setFilter(id)}>{label} <b>{id === 'todos' ? quotes.length : quotes.filter(q => q.status === id).length}</b></button>)}</div><button className="filter"><SlidersHorizontal size={17}/> Filtros</button></div>
+    {loading ? <Loading/> : <div className="tablepanel"><table><thead><tr><th>Orçamento</th><th>Cliente</th><th>Data</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>{filtered.map(q => <tr key={q.id} onClick={() => setSelected(q)}><td><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong></td><td>{q.refrig_clients?.name || 'Cliente'}</td><td>{dateBR(q.issue_date)}</td><td><strong>{money(q.total_final)}</strong></td><td><Badge status={q.status}/></td><td><button className="iconbtn"><MoreHorizontal size={19}/></button></td></tr>)}</tbody></table>{!filtered.length && <Empty title="Nenhum orçamento encontrado" text="Crie seu primeiro orçamento para começar."/>}</div>}
+    <div className="mobile-cards">{filtered.map(q => <div className="quote-card" key={q.id} onClick={() => setSelected(q)}><div><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong><Badge status={q.status}/></div><h3>{q.refrig_clients?.name || 'Cliente'}</h3><p>{dateBR(q.issue_date)}</p><strong>{money(q.total_final)}</strong></div>)}</div>
+  </div>;
 }
 
-async function deleteQuote(quote, refresh) {
-  const ok = window.confirm(
-    `Excluir o orçamento ${code('ORC', quote.quote_number)}?\n\nEssa ação não poderá ser desfeita.`
-  );
-  if (!ok) return;
 
-  try {
-    await supabase.from('refrig_service_calls').delete().eq('quote_id', quote.id);
-    await supabase.from('refrig_quote_items').delete().eq('quote_id', quote.id);
-
-    const { error } = await supabase
-      .from('refrig_quotes')
-      .delete()
-      .eq('id', quote.id);
-
-    if (error) throw error;
-    refresh();
-  } catch (err) {
-    alert(err.message || 'Não foi possível excluir o orçamento.');
-  }
-}
-
-/* ========================= NOVO / EDITAR ORÇAMENTO ========================= */
-
-const blankEquipment = () => ({
-  type: '', brand: '', model: '', capacity: '', observation: ''
-});
-
-const blankItem = () => ({
-  equipmentIndex: 0,
-  service_name: '',
-  service_description: '',
-  included: '',
-  quantity: 1,
-  original: '',
-  discount: '',
-  final: ''
-});
-
-function NewQuote({ go, refresh, quote }) {
-  const [step, setStep] = useState(1);
-  const [client, setClient] = useState({
-    name: '', document: '', phone: '', whatsapp: '', email: '', address: '', notes: ''
-  });
-  const [equipment, setEquipment] = useState([blankEquipment()]);
-  const [items, setItems] = useState([blankItem()]);
+function NewQuote({ go, quote = null }) {
+  const [client, setClient] = useState({ name:'', document:'', phone:'', whatsapp:'', email:'', address:'', notes:'' });
+  const [equipment, setEquipment] = useState([{ type:'', brand:'', model:'', capacity:'', observation:'' }]);
+  const [items, setItems] = useState([{ equipmentIndex:0, service_catalog_id:'', service_name:'', service_description:'', included:'', quantity:1, original:'', discount:'', final:'' }]);
   const [catalog, setCatalog] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [saving, setSaving] = useState(false); const [loadingEdit, setLoadingEdit] = useState(Boolean(quote)); const [error, setError] = useState('');
 
   useEffect(() => {
-    loadCatalog();
+    let alive = true;
+    supabase.from('refrig_service_catalog').select('*').eq('active', true).order('category').order('name').then(({data, error:catalogError})=>{
+      if(!alive) return;
+      if(catalogError){ console.warn('Catálogo indisponível:', catalogError.message); setCatalog(DEFAULT_SERVICE_CATALOG.map((x,i)=>({...x,id:`default-${i}`,active:true}))); }
+      else setCatalog((data && data.length) ? data : DEFAULT_SERVICE_CATALOG.map((x,i)=>({...x,id:`default-${i}`,active:true})));
+      setCatalogLoading(false);
+    });
+    return ()=>{alive=false;};
   }, []);
 
-  async function loadCatalog() {
-    const { data } = await supabase
-      .from('refrig_service_catalog')
-      .select('*')
-      .eq('active', true)
-      .order('category')
-      .order('name');
-    setCatalog(data || []);
-  }
-
   useEffect(() => {
-    if (!quote) return;
-
+    let alive = true;
+    if (!quote) { setLoadingEdit(false); return () => { alive = false; }; }
     (async () => {
+      setLoadingEdit(true);
+      const { data, error: itemError } = await supabase.from('refrig_quote_items')
+        .select('*, refrig_equipment(id,equipment_type,brand,model,capacity,observation)')
+        .eq('quote_id', quote.id)
+        .order('created_at', { ascending: true });
+      if (!alive) return;
+      if (itemError) { setError(itemError.message); setLoadingEdit(false); return; }
       const clientData = quote.refrig_clients || {};
       setClient({
-        name: clientData.name || '',
-        document: clientData.document || '',
-        phone: clientData.phone || '',
-        whatsapp: clientData.whatsapp || '',
-        email: clientData.email || '',
-        address: clientData.address || '',
-        notes: quote.notes || ''
+        name: clientData.name || '', document: clientData.document || clientData.cpf_cnpj || clientData.cpf || clientData.cnpj || '',
+        phone: clientData.phone || '', whatsapp: clientData.whatsapp || '',
+        email: clientData.email || '', address: clientData.address || '', notes: quote.notes || ''
       });
-
-      const { data: eq } = await supabase
-        .from('refrig_equipment')
-        .select('*')
-        .eq('client_id', quote.client_id)
-        .order('created_at');
-
-      const { data: rows } = await supabase
-        .from('refrig_quote_items')
-        .select('*, refrig_equipment(*)')
-        .eq('quote_id', quote.id)
-        .order('created_at');
-
-      const equipmentRows = eq?.length ? eq : [];
-      setEquipment(equipmentRows.length
-        ? equipmentRows.map(e => ({
-            type: e.equipment_type || '',
-            brand: e.brand || '',
-            model: e.model || '',
-            capacity: e.capacity || '',
-            observation: e.observation || '',
-            id: e.id
-          }))
-        : [blankEquipment()]);
-
-      setItems(rows?.length ? rows.map(r => ({
-        equipmentIndex: Math.max(0,
-          equipmentRows.findIndex(e => e.id === r.equipment_id)),
-        service_name: r.service_name || '',
-        service_description: r.service_description || '',
-        included: r.included || '',
-        quantity: r.quantity || 1,
-        original: r.unit_original_value || '',
-        discount: r.unit_discount || '',
-        final: r.unit_final_value || ''
-      })) : [blankItem()]);
+      const equipmentMap = new Map();
+      (data || []).forEach(row => {
+        const e = row.refrig_equipment || {};
+        if (!equipmentMap.has(row.equipment_id)) equipmentMap.set(row.equipment_id, {
+          id: row.equipment_id, type:e.equipment_type || '', brand:e.brand || '', model:e.model || '', capacity:e.capacity || '', observation:e.observation || ''
+        });
+      });
+      const eqs = Array.from(equipmentMap.values());
+      const indexById = new Map(eqs.map((e,i) => [e.id, i]));
+      setEquipment(eqs.length ? eqs : [{ type:'', brand:'', model:'', capacity:'', observation:'' }]);
+      setItems((data || []).map(row => ({
+        id: row.id, equipmentIndex:indexById.get(row.equipment_id) ?? 0, service_name:row.service_name || '',
+        service_catalog_id: catalog.find(s=>s.name===row.service_name)?.id || '', service_description:row.service_description || '', included:row.included || '', quantity:Number(row.quantity || 1), original:String(row.unit_original_value ?? ''),
+        discount:String(row.unit_discount ?? ''), final:String(row.unit_final_value ?? '')
+      })));
+      setLoadingEdit(false);
     })();
+    return () => { alive = false; };
   }, [quote]);
 
-  const total = items.reduce(
-    (sum, item) => sum + Number(item.quantity || 0) * Number(item.final || 0),
-    0
-  );
+  useEffect(() => {
+    if (!catalog.length || !items.length) return;
+    setItems(prev => prev.map(item => {
+      const service = catalog.find(s => s.name === item.service_name);
+      return service ? { ...item, service_catalog_id: item.service_catalog_id || service.id, service_description: item.service_description || service.description || '', included: item.included || service.included || '' } : item;
+    }));
+  }, [catalog.length]);
 
-  const originalTotal = items.reduce(
-    (sum, item) => sum + Number(item.quantity || 0) * Number(item.original || 0),
-    0
-  );
+  const applyCatalogService = (index, serviceId) => {
+    const selectedService = catalog.find(s => String(s.id) === String(serviceId));
+    if (!selectedService) return;
+    setItems(items.map((it,idx)=>idx===index ? {
+      ...it,
+      service_catalog_id: selectedService.id,
+      service_name: selectedService.name,
+      service_description: selectedService.description || '',
+      included: selectedService.included || '',
+      original: selectedService.default_price ? String(selectedService.default_price) : '',
+      final: selectedService.default_price ? String(selectedService.default_price) : ''
+    } : it));
+  };
 
-  const discountTotal = items.reduce(
-    (sum, item) => sum + Number(item.quantity || 0) * Number(item.discount || 0),
-    0
-  );
-
-  function updateEquipment(i, key, value) {
-    setEquipment(prev => prev.map((e, index) =>
-      index === i ? { ...e, [key]: value } : e
-    ));
-  }
-
-  function addEquipment() {
-    const next = [...equipment, blankEquipment()];
+  const addEquipment = () => {
+    const next = [...equipment, {type:'',brand:'',model:'',capacity:'',observation:''}];
     setEquipment(next);
-    setItems(prev => [...prev, { ...blankItem(), equipmentIndex: next.length - 1 }]);
-  }
-
-  function updateItem(i, key, value) {
-    setItems(prev => prev.map((item, index) =>
-      index === i ? { ...item, [key]: value } : item
-    ));
-  }
-
-  function addItem() {
-    setItems(prev => [...prev, blankItem()]);
-  }
-
-  function chooseCatalog(index, catalogId) {
-    const service = catalog.find(x => x.id === catalogId);
-    if (!service) return;
-
-    setItems(prev => prev.map((item, i) => i === index ? {
-      ...item,
-      service_name: service.name,
-      service_description: service.description || '',
-      included: service.included || '',
-      original: service.default_price ?? '',
-      discount: '',
-      final: service.default_price ?? ''
-    } : item));
-  }
+    setItems([...items, { equipmentIndex: next.length-1, service_catalog_id:'', service_name:'', service_description:'', included:'', quantity:1, original:'', discount:'', final:'' }]);
+  };
+  const addItem = () => setItems([...items, { equipmentIndex:0, service_catalog_id:'', service_name:'', service_description:'', included:'', quantity:1, original:'', discount:'', final:'' }]);
+  const updateEquipment = (i,key,value) => setEquipment(equipment.map((e,idx)=>idx===i?{...e,[key]:value}:e));
+  const updateItem = (i,key,value) => setItems(items.map((it,idx)=>idx===i?{...it,[key]:value}:it));
+  const total = items.reduce((sum,it)=>sum + Number(it.quantity||0) * Number(it.final||0), 0);
 
   async function save() {
     setError('');
-
-    if (!client.name.trim()) {
-      setError('Informe o nome do cliente.');
-      setStep(1);
-      return;
-    }
-
-    if (equipment.some(e => !String(e.type || '').trim())) {
-      setError('Informe o tipo de todos os equipamentos.');
-      setStep(2);
-      return;
-    }
-
-    if (!items.length || items.some(i =>
-      !String(i.service_name || '').trim() ||
-      Number(i.final || 0) <= 0
-    )) {
-      setError('Informe o serviço e o valor final de cada item.');
-      setStep(3);
-      return;
-    }
-
+    if (!client.name.trim()) return setError('Informe o nome do cliente.');
+    if (equipment.some(e => !e.type.trim())) return setError('Informe o tipo de todos os equipamentos.');
+    if (!items.length || items.some(i => !i.service_name.trim() || !i.final)) return setError('Informe o serviço e o valor final de cada item.');
     setSaving(true);
-
     try {
       const { data: auth } = await supabase.auth.getUser();
       const owner_id = auth.user.id;
-
-      let clientId = quote?.client_id;
-
-      if (clientId) {
-        const { error } = await supabase
-          .from('refrig_clients')
-          .update({
-            name: client.name,
-            document: client.document,
-            phone: client.phone,
-            whatsapp: client.whatsapp,
-            email: client.email,
-            address: client.address
-          })
-          .eq('id', clientId);
-        if (error) throw error;
+      if (!quote) {
+        const { data: c, error: ce } = await supabase.from('refrig_clients').insert({ owner_id, ...client }).select().single(); if (ce) throw ce;
+        const { data: eq, error: ee } = await supabase.from('refrig_equipment').insert(equipment.map(e => ({ owner_id, client_id:c.id, equipment_type:e.type, brand:e.brand, model:e.model, capacity:e.capacity, observation:e.observation }))).select().order('created_at'); if (ee) throw ee;
+        const { data: q, error: qe } = await supabase.from('refrig_quotes').insert({ owner_id, client_id:c.id, notes:client.notes, total_original:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.original||0),0), total_discount:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.discount||0),0), total_final:total }).select().single(); if (qe) throw qe;
+        const rows = items.map(i => ({ quote_id:q.id, equipment_id:eq[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, included:i.included || '', quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
+        const { error: ie } = await supabase.from('refrig_quote_items').insert(rows); if (ie) throw ie;
       } else {
-        const { data, error } = await supabase
-          .from('refrig_clients')
-          .insert({
-            owner_id,
-            name: client.name,
-            document: client.document,
-            phone: client.phone,
-            whatsapp: client.whatsapp,
-            email: client.email,
-            address: client.address
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        clientId = data.id;
-      }
-
-      let equipmentRows = [];
-
-      if (quote) {
-        for (const e of equipment.filter(x => x.id)) {
-          await supabase.from('refrig_equipment').update({
-            equipment_type: e.type,
-            brand: e.brand,
-            model: e.model,
-            capacity: e.capacity,
-            observation: e.observation
-          }).eq('id', e.id);
+        const { error: ce } = await supabase.from('refrig_clients').update(client).eq('id', quote.client_id); if (ce) throw ce;
+        const { data: currentEq, error: eqReadError } = await supabase.from('refrig_equipment').select('id').eq('client_id', quote.client_id); if (eqReadError) throw eqReadError;
+        const existingIds = new Set((currentEq || []).map(e => e.id));
+        const keepIds = new Set(equipment.filter(e => e.id).map(e => e.id));
+        const { error: deleteItemsError } = await supabase.from('refrig_quote_items').delete().eq('quote_id', quote.id); if (deleteItemsError) throw deleteItemsError;
+        for (const e of equipment) {
+          if (e.id) {
+            const { error } = await supabase.from('refrig_equipment').update({ equipment_type:e.type, brand:e.brand, model:e.model, capacity:e.capacity, observation:e.observation }).eq('id',e.id); if (error) throw error;
+          } else {
+            const { data: inserted, error } = await supabase.from('refrig_equipment').insert({ owner_id, client_id:quote.client_id, equipment_type:e.type, brand:e.brand, model:e.model, capacity:e.capacity, observation:e.observation }).select().single(); if (error) throw error;
+            e.id = inserted.id;
+          }
         }
-
-        const newEquipment = equipment.filter(x => !x.id);
-        if (newEquipment.length) {
-          const { data, error } = await supabase
-            .from('refrig_equipment')
-            .insert(newEquipment.map(e => ({
-              owner_id,
-              client_id: clientId,
-              equipment_type: e.type,
-              brand: e.brand,
-              model: e.model,
-              capacity: e.capacity,
-              observation: e.observation
-            })))
-            .select();
-          if (error) throw error;
-          equipmentRows = [...newEquipment.map((e, i) => ({ ...e, id: data[i].id }))];
-        }
-
-        const existing = equipment.filter(x => x.id);
-        equipmentRows = [...existing, ...equipmentRows];
-
-        await supabase.from('refrig_quote_items').delete().eq('quote_id', quote.id);
-
-        const { error: qe } = await supabase
-          .from('refrig_quotes')
-          .update({
-            notes: client.notes,
-            total_original: originalTotal,
-            total_discount: discountTotal,
-            total_final: total
-          })
-          .eq('id', quote.id);
-        if (qe) throw qe;
-
-        await insertQuoteItems(quote.id, items, equipmentRows);
-      } else {
-        const { data, error } = await supabase
-          .from('refrig_equipment')
-          .insert(equipment.map(e => ({
-            owner_id,
-            client_id: clientId,
-            equipment_type: e.type,
-            brand: e.brand,
-            model: e.model,
-            capacity: e.capacity,
-            observation: e.observation
-          })))
-          .select()
-          .order('created_at');
-
-        if (error) throw error;
-
-        equipmentRows = data;
-
-        const { data: q, error: qe } = await supabase
-          .from('refrig_quotes')
-          .insert({
-            owner_id,
-            client_id: clientId,
-            notes: client.notes,
-            total_original: originalTotal,
-            total_discount: discountTotal,
-            total_final: total
-          })
-          .select()
-          .single();
-
-        if (qe) throw qe;
-
-        await insertQuoteItems(q.id, items, equipmentRows);
+        for (const id of existingIds) if (!keepIds.has(id)) { const { error } = await supabase.from('refrig_equipment').delete().eq('id',id); if (error) throw error; }
+        const { error: qe } = await supabase.from('refrig_quotes').update({ notes:client.notes, total_original:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.original||0),0), total_discount:items.reduce((s,i)=>s+Number(i.quantity||0)*Number(i.discount||0),0), total_final:total }).eq('id',quote.id); if (qe) throw qe;
+        const rows = items.map(i => ({ quote_id:quote.id, equipment_id:equipment[i.equipmentIndex].id, service_name:i.service_name, service_description:i.service_description, included:i.included || '', quantity:Number(i.quantity||1), unit_original_value:Number(i.original||0), unit_discount:Number(i.discount||0), unit_final_value:Number(i.final||0) }));
+        const { error: ie } = await supabase.from('refrig_quote_items').insert(rows); if (ie) throw ie;
       }
-
-      refresh();
       go('quotes');
-    } catch (err) {
-      setError(err.message || 'Não foi possível salvar o orçamento.');
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { setError(e.message || 'Não foi possível salvar o orçamento.'); }
+    finally { setSaving(false); }
   }
 
-  async function insertQuoteItems(quoteId, rows, equipmentRows) {
-    const payload = rows.map(item => ({
-      quote_id: quoteId,
-      equipment_id: equipmentRows[item.equipmentIndex]?.id,
-      service_name: item.service_name,
-      service_description: item.service_description,
-      included: item.included,
-      quantity: Number(item.quantity || 1),
-      unit_original_value: Number(item.original || 0),
-      unit_discount: Number(item.discount || 0),
-      unit_final_value: Number(item.final || 0)
-    }));
-
-    let result = await supabase
-      .from('refrig_quote_items')
-      .insert(payload);
-
-    if (result.error && /included|column/i.test(result.error.message || '')) {
-      const fallback = payload.map(({ included, ...rest }) => rest);
-      result = await supabase.from('refrig_quote_items').insert(fallback);
-    }
-
-    if (result.error) throw result.error;
-  }
-
-  return (
-    <div className="content">
-      <button className="back" onClick={() => go('quotes')}>
-        <ArrowLeft size={18} /> Voltar
+  if (loadingEdit) return <div className="content"><Loading label="Carregando orçamento..."/></div>;
+  return <div className="content"><button className="back" onClick={() => go('quotes')}><ArrowLeft size={18}/> Voltar</button><PageHead title={quote ? `Editar ORC-${String(quote.quote_number).padStart(4,'0')}` : 'Criar orçamento'} sub="Monte uma proposta com serviços e valores por equipamento." />{error&&<div className="form-error">{error}</div>}
+    <section className="panel form-section"><div className="panel-head"><div><h2>1. Cliente</h2><p>Quem receberá o orçamento.</p></div></div><div className="form-grid">{[['name','Nome','text'],['document','CPF / CNPJ','text'],['phone','Telefone','text'],['whatsapp','WhatsApp','text'],['email','E-mail','email'],['address','Endereço','text']].map(([k,l,t])=><label key={k}>{l}<input type={t} value={client[k]||''} onChange={e=>setClient({...client,[k]:e.target.value})} placeholder={k==='document'?'000.000.000-00 ou 00.000.000/0000-00':''}/></label>)}</div><label>Observações<textarea value={client.notes} onChange={e=>setClient({...client,notes:e.target.value})}/></label></section>
+    <section className="panel form-section"><div className="panel-head"><div><h2>2. Equipamentos</h2><p>Cadastre cada equipamento que receberá serviço.</p></div><button className="secondary" onClick={addEquipment}><Plus size={16}/> Adicionar equipamento</button></div>{equipment.map((e,i)=><div className="equipment-form" key={e.id || i}><div className="mini-index">{String(i+1).padStart(2,'0')}</div><div className="form-grid equipment-fields"><label>Tipo*<input value={e.type} onChange={ev=>updateEquipment(i,'type',ev.target.value)} placeholder="Ex.: Piso-Teto"/></label><label>Marca<input value={e.brand} onChange={ev=>updateEquipment(i,'brand',ev.target.value)}/></label><label>Modelo<input value={e.model} onChange={ev=>updateEquipment(i,'model',ev.target.value)}/></label><label>Capacidade<input value={e.capacity} onChange={ev=>updateEquipment(i,'capacity',ev.target.value)} placeholder="60.000 BTU"/></label></div></div>)}</section>
+    <section className="panel form-section"><div className="panel-head"><div><h2>3. Serviços</h2><p>O mesmo equipamento pode ter vários serviços e cada combinação tem seu próprio preço.</p></div><button className="secondary" onClick={addItem}><Plus size={16}/> Adicionar serviço</button></div>{items.map((it,i)=><div className="service-editor" key={it.id || i}><div className="service-editor-head"><strong>Serviço {String(i+1).padStart(2,'0')}</strong><button className="iconbtn" onClick={()=>setItems(items.filter((_,idx)=>idx!==i))} disabled={items.length===1}><Trash2 size={17}/></button></div><div className="form-grid"><label>Equipamento<select value={it.equipmentIndex} onChange={e=>updateItem(i,'equipmentIndex',Number(e.target.value))}>{equipment.map((e,idx)=><option key={e.id || idx} value={idx}>{idx+1}. {e.type||'Equipamento'}</option>)}</select></label><label>Serviço*
+<select value={it.service_catalog_id || (it.service_name && !catalog.some(s=>s.name===it.service_name) ? `legacy:${it.service_name}` : '')} onChange={e=>{ if(e.target.value.startsWith('legacy:')) updateItem(i,'service_catalog_id',''); else if(e.target.value) applyCatalogService(i,e.target.value); else updateItem(i,'service_catalog_id',''); }} disabled={catalogLoading}>
+<option value="">{catalogLoading?'Carregando serviços…':'Selecione um serviço'}</option>
+{it.service_name && !catalog.some(s=>s.name===it.service_name) && <option value={`legacy:${it.service_name}`}>{it.service_name} · serviço atual</option>}
+{catalog.map(s=><option key={s.id} value={s.id}>{s.category ? `${s.category} · ` : ''}{s.name}</option>)}
+</select>
+{it.service_name && <small className="field-hint">{it.service_description || 'Serviço selecionado no catálogo.'}</small>}
+</label><label>Quantidade<input type="number" min="1" value={it.quantity} onChange={e=>updateItem(i,'quantity',e.target.value)}/></label><label>Valor original<input type="number" step="0.01" value={it.original} onChange={e=>updateItem(i,'original',e.target.value)}/></label><label>Desconto<input type="number" step="0.01" value={it.discount} onChange={e=>updateItem(i,'discount',e.target.value)}/></label><label>Valor final*<input type="number" step="0.01" value={it.final} onChange={e=>updateItem(i,'final',e.target.value)}/></label></div>{it.included&&<div className="service-included-preview"><strong>Incluso no serviço</strong><span>{it.included}</span></div>}<div className="item-total">Total do item <strong>{money(Number(it.quantity||0)*Number(it.final||0))}</strong></div></div>)}</section>
+    <section className="panel total-box"><span>Total do orçamento</span><strong>{money(total)}</strong></section>
+    <div className="quote-save-footer">
+      <button className="secondary" onClick={() => go('quotes')} disabled={saving}>Cancelar</button>
+      <button className="primary" onClick={save} disabled={saving}>
+        {saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>}
+        {saving?'Salvando…':quote?'Salvar alterações':'Salvar orçamento'}
       </button>
-
-      <PageHead
-        title={quote ? 'Editar orçamento' : 'Criar orçamento'}
-        sub="Monte uma proposta com serviços e valores por equipamento."
-        action={
-          <button className="primary" onClick={save} disabled={saving}>
-            {saving ? <LoaderCircle className="spin" size={18} /> : <Save size={18} />}
-            {quote ? 'Salvar alterações' : 'Salvar orçamento'}
-          </button>
-        }
-      />
-
-      {error && <div className="form-error">{error}</div>}
-
-      <div className="steps">
-        {[
-          [1, 'Cliente'],
-          [2, 'Equipamentos'],
-          [3, 'Serviços'],
-          [4, 'Revisão']
-        ].map(([n, label]) => (
-          <button key={n}
-            className={step === n ? 'active' : step > n ? 'done' : ''}
-            onClick={() => setStep(n)}>
-            <span>{step > n ? <Check size={15} /> : n}</span>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {step === 1 && (
-        <section className="panel form-section">
-          <div className="panel-head">
-            <div>
-              <h2>Cliente</h2>
-              <p>Quem receberá o orçamento.</p>
-            </div>
-          </div>
-
-          <div className="form-grid">
-            {[
-              ['name', 'Nome*', 'text'],
-              ['document', 'CPF / CNPJ', 'text'],
-              ['phone', 'Telefone', 'text'],
-              ['whatsapp', 'WhatsApp', 'text'],
-              ['email', 'E-mail', 'email'],
-              ['address', 'Endereço', 'text']
-            ].map(([key, label, type]) => (
-              <label key={key}>{label}
-                <input type={type} value={client[key] || ''}
-                  onChange={e => setClient({ ...client, [key]: e.target.value })} />
-              </label>
-            ))}
-          </div>
-
-          <label>Observações
-            <textarea value={client.notes}
-              onChange={e => setClient({ ...client, notes: e.target.value })}
-              placeholder="Observações gerais do orçamento..." />
-          </label>
-
-          <div className="form-footer">
-            <button className="primary" onClick={() => setStep(2)}>
-              Próximo <ChevronRight size={17} />
-            </button>
-          </div>
-        </section>
-      )}
-
-      {step === 2 && (
-        <section className="panel form-section">
-          <div className="panel-head">
-            <div>
-              <h2>Equipamentos</h2>
-              <p>Cadastre cada equipamento que receberá serviço.</p>
-            </div>
-            <button className="secondary" onClick={addEquipment}>
-              <Plus size={16} /> Adicionar equipamento
-            </button>
-          </div>
-
-          {equipment.map((e, i) => (
-            <div className="equipment-form" key={i}>
-              <div className="mini-index">{String(i + 1).padStart(2, '0')}</div>
-              <div className="form-grid equipment-fields">
-                <label>Tipo*
-                  <input value={e.type}
-                    onChange={ev => updateEquipment(i, 'type', ev.target.value)}
-                    placeholder="Ex.: Piso-Teto" />
-                </label>
-                <label>Marca
-                  <input value={e.brand}
-                    onChange={ev => updateEquipment(i, 'brand', ev.target.value)} />
-                </label>
-                <label>Modelo
-                  <input value={e.model}
-                    onChange={ev => updateEquipment(i, 'model', ev.target.value)} />
-                </label>
-                <label>Capacidade
-                  <input value={e.capacity}
-                    onChange={ev => updateEquipment(i, 'capacity', ev.target.value)}
-                    placeholder="60.000 BTU" />
-                </label>
-                <label className="full-field">Observação
-                  <input value={e.observation || ''}
-                    onChange={ev => updateEquipment(i, 'observation', ev.target.value)} />
-                </label>
-              </div>
-            </div>
-          ))}
-
-          <div className="form-footer">
-            <button className="secondary" onClick={() => setStep(1)}>
-              <ArrowLeft size={17} /> Voltar
-            </button>
-            <button className="primary" onClick={() => setStep(3)}>
-              Próximo <ChevronRight size={17} />
-            </button>
-          </div>
-        </section>
-      )}
-
-      {step === 3 && (
-        <section className="panel form-section">
-          <div className="panel-head">
-            <div>
-              <h2>Serviços</h2>
-              <p>O mesmo equipamento pode ter vários serviços.</p>
-            </div>
-            <button className="secondary" onClick={addItem}>
-              <Plus size={16} /> Adicionar serviço
-            </button>
-          </div>
-
-          {items.map((item, i) => (
-            <div className="service-editor" key={i}>
-              <div className="service-editor-head">
-                <strong>Serviço {String(i + 1).padStart(2, '0')}</strong>
-                <button className="iconbtn"
-                  onClick={() => setItems(items.filter((_, idx) => idx !== i))}
-                  disabled={items.length === 1}>
-                  <Trash2 size={17} />
-                </button>
-              </div>
-
-              <div className="form-grid">
-                <label className="full-field">Equipamento
-                  <select value={item.equipmentIndex}
-                    onChange={e => updateItem(i, 'equipmentIndex', Number(e.target.value))}>
-                    {equipment.map((e, idx) => (
-                      <option key={idx} value={idx}>
-                        {idx + 1}. {e.type || 'Equipamento'} {e.capacity ? `— ${e.capacity}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="full-field">Escolher do catálogo
-                  <select defaultValue=""
-                    onChange={e => chooseCatalog(i, e.target.value)}>
-                    <option value="">Selecione um serviço pronto...</option>
-                    {categories.map(category => (
-                      <optgroup key={category} label={categoryLabel(category)}>
-                        {catalog.filter(s => s.category === category).map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
-
-                <label>Serviço*
-                  <input value={item.service_name}
-                    onChange={e => updateItem(i, 'service_name', e.target.value)}
-                    placeholder="Lavagem completa" />
-                </label>
-
-                <label>Quantidade
-                  <input type="number" min="1" value={item.quantity}
-                    onChange={e => updateItem(i, 'quantity', e.target.value)} />
-                </label>
-
-                <label>Valor original
-                  <input type="number" step="0.01" value={item.original}
-                    onChange={e => updateItem(i, 'original', e.target.value)} />
-                </label>
-
-                <label>Desconto por unidade
-                  <input type="number" step="0.01" value={item.discount}
-                    onChange={e => updateItem(i, 'discount', e.target.value)} />
-                </label>
-
-                <label>Valor final*
-                  <input type="number" step="0.01" value={item.final}
-                    onChange={e => updateItem(i, 'final', e.target.value)} />
-                </label>
-
-                <label className="full-field">Descrição
-                  <textarea value={item.service_description || ''}
-                    onChange={e => updateItem(i, 'service_description', e.target.value)} />
-                </label>
-
-                <label className="full-field">O que está incluso
-                  <textarea value={item.included || ''}
-                    onChange={e => updateItem(i, 'included', e.target.value)}
-                    placeholder={"Ex.:\nInspeção das conexões\nTeste de vazamento\nIdentificação do ponto de fuga"} />
-                </label>
-              </div>
-
-              <div className="item-total">
-                Total do item
-                <strong>{money(Number(item.quantity || 0) * Number(item.final || 0))}</strong>
-              </div>
-            </div>
-          ))}
-
-          <div className="form-footer">
-            <button className="secondary" onClick={() => setStep(2)}>
-              <ArrowLeft size={17} /> Voltar
-            </button>
-            <button className="primary" onClick={() => setStep(4)}>
-              Revisar <ChevronRight size={17} />
-            </button>
-          </div>
-        </section>
-      )}
-
-      {step === 4 && (
-        <>
-          <section className="panel">
-            <div className="panel-head">
-              <div>
-                <h2>Revisão</h2>
-                <p>Confira os dados antes de salvar.</p>
-              </div>
-            </div>
-
-            <div className="review-grid">
-              <div>
-                <small>CLIENTE</small>
-                <strong>{client.name || '—'}</strong>
-                <span>{client.document || 'CPF/CNPJ não informado'}</span>
-                <span>{client.address || 'Endereço não informado'}</span>
-              </div>
-              <div>
-                <small>CONTATO</small>
-                <span>{client.phone || '—'}</span>
-                <span>{client.whatsapp || '—'}</span>
-                <span>{client.email || '—'}</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="panel">
-            <div className="panel-head">
-              <div>
-                <h2>Serviços</h2>
-                <p>Serviço, equipamento, inclusos e valores.</p>
-              </div>
-            </div>
-
-            {items.map((item, i) => (
-              <div className="review-service" key={i}>
-                <div>
-                  <strong>{item.service_name || 'Serviço'}</strong>
-                  <span>
-                    {equipment[item.equipmentIndex]?.type || 'Equipamento'}
-                    {equipment[item.equipmentIndex]?.capacity
-                      ? ` — ${equipment[item.equipmentIndex].capacity}` : ''}
-                  </span>
-                </div>
-
-                {item.included && (
-                  <div className="included-list">
-                    <small>INCLUSO</small>
-                    {String(item.included).split(/\r?\n|;/)
-                      .map(x => x.trim()).filter(Boolean)
-                      .map((x, idx) => (
-                        <span key={idx}><Check size={14} /> {x}</span>
-                      ))}
-                  </div>
-                )}
-
-                <strong>{money(Number(item.quantity || 0) * Number(item.final || 0))}</strong>
-              </div>
-            ))}
-          </section>
-
-          <section className="panel total-box">
-            <span>Valor total do orçamento</span>
-            <strong>{money(total)}</strong>
-          </section>
-
-          <div className="form-footer">
-            <button className="secondary" onClick={() => setStep(3)}>
-              <ArrowLeft size={17} /> Voltar
-            </button>
-            <button className="primary" onClick={save} disabled={saving}>
-              {saving ? <LoaderCircle className="spin" size={18} /> : <Save size={18} />}
-              {quote ? 'Salvar alterações' : 'Salvar orçamento'}
-            </button>
-          </div>
-        </>
-      )}
     </div>
-  );
+  </div>;
 }
 
-/* ========================= DETALHE / PDF ========================= */
+async function loadPdfLibraries() {
+  if (window.jspdf?.jsPDF?.API?.autoTable) return;
 
-function QuoteDetail({ quote, back, onChanged, onEdit }) {
-  const [status, setStatus] = useState(quote.status);
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setLoading(true);
-    supabase
-      .from('refrig_quote_items')
-      .select('*, refrig_equipment(equipment_type,brand,model,capacity)')
-      .eq('quote_id', quote.id)
-      .order('created_at')
-      .then(({ data }) => {
-        setItems(data || []);
-        setLoading(false);
-      });
-  }, [quote.id]);
-
-  const client = quote.refrig_clients || {};
-
-  async function changeStatus(next) {
-    setSaving(true);
-
-    const { error } = await supabase
-      .from('refrig_quotes')
-      .update({ status: next })
-      .eq('id', quote.id);
-
-    if (error) {
-      alert(error.message);
-      setSaving(false);
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener('load', resolve, { once: true });
+      existing.addEventListener('error', reject, { once: true });
+      if (window.jspdf?.jsPDF?.API?.autoTable) resolve();
       return;
     }
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
 
-    if (next === 'aprovado') {
-      const { data: user } = await supabase.auth.getUser();
-
-      const { data: existing } = await supabase
-        .from('refrig_service_calls')
-        .select('id')
-        .eq('quote_id', quote.id)
-        .maybeSingle();
-
-      if (!existing) {
-        await supabase.from('refrig_service_calls').insert({
-          owner_id: user.user.id,
-          quote_id: quote.id,
-          status: 'aprovado'
-        });
-      }
-    }
-
-    setStatus(next);
-    onChanged();
-    setSaving(false);
-  }
-
-  async function copyQuote() {
-    try {
-      const { data: user } = await supabase.auth.getUser();
-
-      const { data: newQuote, error } = await supabase
-        .from('refrig_quotes')
-        .insert({
-          owner_id: user.user.id,
-          client_id: quote.client_id,
-          notes: quote.notes || '',
-          total_original: quote.total_original || 0,
-          total_discount: quote.total_discount || 0,
-          total_final: quote.total_final || 0
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const payload = items.map(i => ({
-        quote_id: newQuote.id,
-        equipment_id: i.equipment_id,
-        service_name: i.service_name,
-        service_description: i.service_description,
-        included: i.included,
-        quantity: i.quantity,
-        unit_original_value: i.unit_original_value,
-        unit_discount: i.unit_discount,
-        unit_final_value: i.unit_final_value
-      }));
-
-      let result = await supabase.from('refrig_quote_items').insert(payload);
-      if (result.error && /included|column/i.test(result.error.message || '')) {
-        result = await supabase.from('refrig_quote_items')
-          .insert(payload.map(({ included, ...rest }) => rest));
-      }
-
-      if (result.error) throw result.error;
-
-      alert(`Cópia criada: ${code('ORC', newQuote.quote_number)}`);
-      onChanged();
-      back();
-    } catch (err) {
-      alert(err.message || 'Não foi possível duplicar o orçamento.');
-    }
-  }
-
-  async function openWhatsApp() {
-    const message =
-      `Olá, ${client.name || ''}! Tudo bem?\n\n` +
-      `Segue o orçamento ${code('ORC', quote.quote_number)}, ` +
-      `referente aos serviços solicitados, no valor total de ${money(quote.total_final)}.\n\n` +
-      `O orçamento é válido por 7 dias. Em caso de dúvidas ou para aprovação, fico à disposição.\n\n` +
-      `${DEFAULT_COMPANY_NAME} | ${DEFAULT_COMPANY_SUBTITLE}`;
-
-    try {
-      // Gera o PDF sem baixar. O arquivo será enviado ao compartilhamento nativo.
-      const result = await generatePDF(quote, items, { download: false });
-      const file = new File([result.blob], result.fileName, {
-        type: 'application/pdf'
-      });
-
-      // Usa o mesmo compartilhamento nativo no celular e no desktop.
-      // O PDF vai anexado e a mensagem segue pronta para o aplicativo escolhido.
-      if (!navigator.share) {
-        throw new Error('Seu navegador não oferece compartilhamento de arquivos.');
-      }
-
-      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
-        throw new Error('Seu navegador não permite compartilhar arquivos PDF.');
-      }
-
-      await navigator.share({
-        files: [file],
-        text: message,
-        title: `Orçamento ${code('ORC', quote.quote_number)}`
-      });
-    } catch (err) {
-      // Fechar a janela de compartilhamento não é um erro.
-      if (err?.name === 'AbortError') return;
-
-      console.error(err);
-      alert(
-        `Não foi possível abrir o compartilhamento do orçamento: ${
-          err?.message || err
-        }`
-      );
-    }
-  }
-  return (
-    <div className="content">
-      <button className="back" onClick={back}>
-        <ArrowLeft size={18} /> Voltar para orçamentos
-      </button>
-
-      <PageHead
-        title={code('ORC', quote.quote_number)}
-        sub="Detalhes do orçamento"
-        action={
-          <div className="actions">
-            <button className="secondary" onClick={() => onEdit(quote)}>
-              <Pencil size={17} /> Editar
-            </button>
-            <button className="secondary" onClick={() => generatePDF(quote, items)}>
-              <Download size={17} /> Gerar PDF
-            </button>
-            <button className="secondary" onClick={copyQuote}>
-              <Copy size={17} /> Duplicar
-            </button>
-            <button className="primary" onClick={openWhatsApp}>
-              <Share2 size={17} /> Compartilhar
-            </button>
-            <button className="danger" onClick={() => deleteQuote(quote, () => {
-              onChanged();
-              back();
-            })}>
-              <Trash2 size={17} /> Excluir
-            </button>
-          </div>
-        }
-      />
-
-      <div className="detail-grid">
-        <section className="panel">
-          <div className="panel-head">
-            <div><h2>Cliente</h2><p>Dados do solicitante.</p></div>
-            <Badge status={status} />
-          </div>
-
-          <div className="info-grid">
-            <Info icon={UserRound} label="Nome" value={client.name} />
-            <Info icon={FileText} label="CPF / CNPJ" value={client.document} />
-            <Info icon={Phone} label="Telefone" value={client.phone} />
-            <Info icon={MessageCircle} label="WhatsApp" value={client.whatsapp} />
-            <Info icon={MapPin} label="Endereço" value={client.address} />
-            <Info icon={Mail} label="E-mail" value={client.email} />
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-head">
-            <div><h2>Serviços</h2><p>Composição do orçamento.</p></div>
-          </div>
-
-          {loading ? <Loading /> : items.map(item => {
-            const equipment = item.refrig_equipment || {};
-            const lineTotal =
-              Number(item.quantity || 0) * Number(item.unit_final_value || 0);
-
-            return (
-              <div className="service-detail" key={item.id}>
-                <div className="service-line">
-                  <div>
-                    <strong>{item.service_name}</strong>
-                    <span>
-                      {item.quantity} × {equipment.equipment_type || 'Equipamento'}
-                      {equipment.capacity ? ` — ${equipment.capacity}` : ''}
-                    </span>
-                  </div>
-                  <strong>{money(lineTotal)}</strong>
-                </div>
-
-                {item.service_description && (
-                  <p className="service-description">{item.service_description}</p>
-                )}
-
-                {item.included && (
-                  <div className="included-list">
-                    <small>O QUE ESTÁ INCLUSO</small>
-                    {String(item.included).split(/\r?\n|;/)
-                      .map(x => x.trim()).filter(Boolean)
-                      .map((x, idx) => (
-                        <span key={idx}><Check size={14} /> {x}</span>
-                      ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          <div className="total">
-            <span>Total</span>
-            <strong>{money(quote.total_final)}</strong>
-          </div>
-        </section>
-      </div>
-
-      <section className="panel">
-        <div className="panel-head">
-          <div><h2>Status</h2><p>Atualize o andamento do orçamento.</p></div>
-        </div>
-
-        <div className="status-actions">
-          {[
-            ['aguardando_resposta', 'Aguardando resposta'],
-            ['aprovado', 'Aprovar'],
-            ['recusado', 'Recusar'],
-            ['em_andamento', 'Em andamento'],
-            ['concluido', 'Concluir']
-          ].map(([id, label]) => (
-            <button key={id}
-              className={status === id ? 'selected' : ''}
-              disabled={saving}
-              onClick={() => changeStatus(id)}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {quote.notes && (
-        <section className="panel">
-          <h2>Observações</h2>
-          <p className="note">{quote.notes}</p>
-        </section>
-      )}
-    </div>
-  );
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js');
 }
 
 const pdfText = (value) => String(value ?? '—').replace(/\s+/g, ' ').trim() || '—';
 const pdfMoney = (value) => money(Number(value || 0));
 
-async function generatePDF(quote, items, { download = true } = {}) {
-  try {
-  const { jsPDF } = await import('jspdf');
-    const { default: autoTable } = await import('jspdf-autotable');
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-    const W = 210;
-    const margin = 12;
-    const contentW = W - margin * 2;
-    const blue = [14, 77, 141];
-    const dark = [21, 34, 56];
-    const muted = [80, 101, 125];
-    const line = [217, 226, 236];
-    const lightBlue = [232, 242, 255];
+async function generateQuotePdf({ quote, client, items, company, download = true }) {
+  await loadPdfLibraries();
 
-    const issueDate = quote.issue_date || quote.created_at?.slice(0, 10);
-    const validity = quote.validity_days || 7;
-    const companyName = DEFAULT_COMPANY_NAME;
-    const client = quote.refrig_clients || {};
-    const fileClientName = String(client.name || 'Cliente').replace(/[^a-z0-9áéíóúãõçàâêôü _-]/gi, '').trim() || 'Cliente';
-    const total = Number(quote.total_final || 0);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  const W = 210;
+  const margin = 12;
+  const contentW = W - margin * 2;
+  const blue = [14, 77, 141];
+  const dark = [21, 34, 56];
+  const muted = [80, 101, 125];
+  const line = [217, 226, 236];
+  const lightBlue = [232, 242, 255];
+
+  const issueDate = quote.issue_date || quote.created_at?.slice(0, 10);
+  const validity = quote.validity_days || 7;
+  const companyName = pdfText(displayCompanyName(company?.company_name));
+  const fileClientName = safeFileName(client?.name || 'Cliente');
+  const total = Number(quote.total_final || 0);
 
   // Header — identidade limpa, sem box ao lado do nome
   doc.setTextColor(...dark);
@@ -1695,7 +437,8 @@ async function generatePDF(quote, items, { download = true } = {}) {
   doc.line(margin, 25, W - margin, 25);
 
   // Cliente / contato — cada informação aparece uma única vez
-  const halfX = margin + contentW / 2 + 3;
+  const halfX = margin + contentW / 2 + 4;
+  const clientBlockW = contentW / 2 - 8;
   const clientDocument = client?.document || client?.cpf_cnpj || client?.cpf || client?.cnpj || '';
 
   doc.setTextColor(...blue);
@@ -1704,31 +447,32 @@ async function generatePDF(quote, items, { download = true } = {}) {
   doc.text('CLIENTE', margin, 31);
   doc.text('CONTATO', halfX, 31);
 
-  // Divisor entre os dois blocos
+  // Divisor visual discreto entre os dois blocos
   doc.setDrawColor(219,234,254);
   doc.setLineWidth(0.7);
-  doc.line(margin + contentW/2, 31, margin + contentW/2, 47);
+  doc.line(margin + contentW/2, 30, margin + contentW/2, 47);
   doc.setLineWidth(0.2);
 
-  // Dados do cliente: nome, CPF/CNPJ e endereço
+  // CLIENTE: nome, CPF/CNPJ e endereço
   doc.setTextColor(...dark);
   doc.setFont('helvetica','bold');
   doc.setFontSize(7.5);
-  doc.text(pdfText(client.name), margin, 35);
+  doc.text(pdfText(client?.name || '—'), margin, 35, { maxWidth: clientBlockW });
 
   doc.setFont('helvetica','normal');
   doc.setTextColor(...muted);
   doc.setFontSize(6.5);
   let clientY = 39;
   if (clientDocument) {
-    doc.text(`CPF/CNPJ: ${pdfText(clientDocument)}`, margin, clientY, { maxWidth: contentW/2 - 8 });
+    doc.text(`CPF/CNPJ: ${pdfText(clientDocument)}`, margin, clientY, { maxWidth: clientBlockW });
     clientY += 4;
   }
-  if (client.address) {
-    doc.text(pdfText(client.address), margin, clientY, { maxWidth: contentW/2 - 8 });
+  if (client?.address) {
+    const addressLines = doc.splitTextToSize(pdfText(client.address), clientBlockW);
+    doc.text(addressLines.slice(0, 2), margin, clientY);
   }
 
-  // Dados de contato: telefone, WhatsApp e e-mail do cliente
+  // CONTATO: telefone, WhatsApp e e-mail — sem repetir no bloco CLIENTE
   const contactLines = [
     client?.phone ? `Telefone: ${client.phone}` : '',
     client?.whatsapp ? `WhatsApp: ${client.whatsapp}` : '',
@@ -1737,7 +481,7 @@ async function generatePDF(quote, items, { download = true } = {}) {
 
   let cy = 35;
   contactLines.slice(0, 3).forEach(value => {
-    doc.text(pdfText(value), halfX, cy, { maxWidth: contentW/2 - 8 });
+    doc.text(pdfText(value), halfX, cy, { maxWidth: clientBlockW });
     cy += 4;
   });
 
@@ -1768,7 +512,7 @@ async function generatePDF(quote, items, { download = true } = {}) {
 
   if (equipment.length) {
     sectionTitle('Equipamentos');
-    autoTable(doc, {
+    doc.autoTable({
       startY: y,
       head: [['#','TIPO','MARCA / MODELO','CAPACIDADE','OBSERVAÇÃO']],
       body: equipment,
@@ -1815,7 +559,7 @@ async function generatePDF(quote, items, { download = true } = {}) {
       ];
     });
 
-    autoTable(doc, {
+    doc.autoTable({
       startY: y,
       head: [['EQUIPAMENTO','QTD.','VALOR ORIGINAL','DESCONTO','VALOR FINAL','TOTAL']],
       body: rows,
@@ -1841,7 +585,27 @@ async function generatePDF(quote, items, { download = true } = {}) {
     doc.setFont('helvetica','bold');
     doc.setFontSize(6.4);
     doc.text(pdfMoney(subtotal), W - margin, y, { align:'right' });
-    y += 5; 
+    y += 5;
+
+    const includedText = String(group.items.find(i => i.included)?.included || '').trim();
+    if (includedText) {
+      const includedLines = includedText.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
+      const boxH = Math.max(8, 5 + includedLines.length * 3.1);
+      doc.setFillColor(247,250,253);
+      doc.setDrawColor(224,232,241);
+      doc.roundedRect(margin, y, contentW, boxH, 1.2, 1.2, 'FD');
+      doc.setTextColor(...blue);
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(5.9);
+      doc.text('INCLUSO NO SERVIÇO', margin + 4, y + 4);
+      doc.setTextColor(...muted);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(5.4);
+      includedLines.forEach((line, idx) => {
+        doc.text(`• ${pdfText(line)}`, margin + 4, y + 7.2 + idx * 3.1, { maxWidth: contentW - 8 });
+      });
+      y += boxH + 3.5;
+    }
   });
 
   // Total
@@ -1887,634 +651,225 @@ async function generatePDF(quote, items, { download = true } = {}) {
   const blob = doc.output('blob');
   if (download) doc.save(fileName);
   return { blob, fileName };
-  } catch (err) {
-    console.error(err);
-    alert(`Não foi possível gerar o PDF: ${err?.message || err}`);
-  }
-}
-/* ========================= FINANCEIRO ========================= */
-
-function Finance({ setSelected, refresh }) {
-  const { quotes, loading } = useQuotes(refresh);
-  const [month, setMonth] = useState('all');
-
-  const approved = quotes.filter(q =>
-    ['aprovado', 'em_andamento', 'concluido'].includes(q.status)
-  );
-
-  const filtered = approved.filter(q => {
-    if (month === 'all') return true;
-    return String(q.issue_date || '').slice(0, 7) === month;
-  });
-
-  const total = filtered.reduce(
-    (sum, q) => sum + Number(q.total_final || 0), 0
-  );
-
-  const months = [...new Set(
-    approved.map(q => String(q.issue_date || '').slice(0, 7)).filter(Boolean)
-  )];
-
-  return (
-    <div className="content">
-      <PageHead
-        title="Financeiro"
-        sub="Somente orçamentos aprovados entram automaticamente no financeiro."
-      />
-
-      <div className="finance-filter">
-        <label>Período
-          <select value={month} onChange={e => setMonth(e.target.value)}>
-            <option value="all">Todos os períodos</option>
-            {months.map(m => (
-              <option key={m} value={m}>
-                {new Date(`${m}-15T12:00:00`).toLocaleDateString('pt-BR', {
-                  month: 'long',
-                  year: 'numeric'
-                })}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="finance-cards">
-        <div className="bigmetric">
-          <span>Total aprovado</span>
-          <strong>{money(total)}</strong>
-          <small>{filtered.length} orçamento(s) considerado(s).</small>
-        </div>
-        <div className="bigmetric">
-          <span>Ticket médio</span>
-          <strong>{money(filtered.length ? total / filtered.length : 0)}</strong>
-          <small>Baseado nos orçamentos aprovados.</small>
-        </div>
-      </div>
-
-      <div className="tablepanel">
-        <div className="table-title">
-          <div>
-            <h2>Movimentações</h2>
-            <p>Clique em um item para consultar o orçamento.</p>
-          </div>
-        </div>
-
-        {loading ? <Loading /> : (
-          <>
-            <table>
-              <thead>
-                <tr>
-                  <th>Orçamento</th>
-                  <th>Cliente</th>
-                  <th>Data</th>
-                  <th>Status</th>
-                  <th>Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(q => (
-                  <tr key={q.id} onClick={() => setSelected(q)}>
-                    <td><strong>{code('ORC', q.quote_number)}</strong></td>
-                    <td>{q.refrig_clients?.name || 'Cliente'}</td>
-                    <td>{dateBR(q.issue_date)}</td>
-                    <td><Badge status={q.status} /></td>
-                    <td><strong>{money(q.total_final)}</strong></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="mobile-cards">
-              {filtered.map(q => (
-                <div className="quote-card" key={q.id}
-                  onClick={() => setSelected(q)}>
-                  <div>
-                    <strong>{code('ORC', q.quote_number)}</strong>
-                    <Badge status={q.status} />
-                  </div>
-                  <h3>{q.refrig_clients?.name || 'Cliente'}</h3>
-                  <p>{dateBR(q.issue_date)}</p>
-                  <strong>{money(q.total_final)}</strong>
-                </div>
-              ))}
-            </div>
-
-            {!filtered.length && (
-              <Empty title="Nenhuma movimentação encontrada"
-                text="Quando um orçamento for aprovado, ele aparecerá aqui." />
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
 }
 
-/* ========================= CHAMADOS ========================= */
+function QuoteDetail({ quote, back, onChanged, onEdit }) {
+  const [saving,setSaving]=useState(false);
+  const [status,setStatus]=useState(quote.status);
+  const [items,setItems]=useState([]);
+  const [company,setCompany]=useState({company_name:DEFAULT_COMPANY_NAME,document:'',phone:'',whatsapp:'',email:'',address:''});
+  const [pdfLoading,setPdfLoading]=useState(false);
+  const [actionsOpen,setActionsOpen]=useState(false);
+  const [deleting,setDeleting]=useState(false);
 
-function Tickets({ setSelected, refresh }) {
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('todos');
+  useEffect(()=>{
+    let alive=true;
+    supabase.from('refrig_quote_items').select('*, refrig_equipment(equipment_type,brand,model,capacity,observation)').eq('quote_id',quote.id).then(({data})=>{if(alive)setItems(data||[]);});
+    supabase.auth.getUser().then(async({data})=>{
+      if(!data.user || !alive) return;
+      const {data:row}=await supabase.from('refrig_company').select('*').eq('owner_id',data.user.id).maybeSingle();
+      if(row && alive) setCompany({...row,company_name:displayCompanyName(row.company_name)});
+    });
+    return ()=>{alive=false;};
+  },[quote.id]);
 
-  useEffect(() => {
-    setLoading(true);
-
-    supabase
-      .from('refrig_service_calls')
-      .select('*, refrig_quotes(*, refrig_clients(name))')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setTickets(data || []);
-        setLoading(false);
-      });
-  }, [refresh]);
-
-  const filtered = tickets.filter(t =>
-    filter === 'todos' || t.status === filter
-  );
-
-  return (
-    <div className="content">
-      <PageHead
-        title="Chamados"
-        sub="Serviços aprovados e em execução."
-      />
-
-      <div className="toolbar">
-        <div className="tabs">
-          {[
-            ['todos', 'Todos'],
-            ['aprovado', 'Aprovados'],
-            ['em_andamento', 'Em andamento'],
-            ['concluido', 'Concluídos'],
-            ['recusado', 'Recusados']
-          ].map(([id, label]) => (
-            <button key={id}
-              className={filter === id ? 'selected' : ''}
-              onClick={() => setFilter(id)}>
-              {label}
-              <b>{id === 'todos'
-                ? tickets.length
-                : tickets.filter(t => t.status === id).length}</b>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading ? <Loading /> : (
-        <div className="ticket-list">
-          {filtered.map(t => (
-            <div className="ticket" key={t.id}
-              onClick={() => t.refrig_quotes && setSelected(t.refrig_quotes)}>
-              <div className="ticket-num">
-                {code('CH', t.call_number)}
-              </div>
-              <div className="grow">
-                <strong>{t.refrig_quotes?.refrig_clients?.name || 'Cliente'}</strong>
-                <span>{code('ORC', t.refrig_quotes?.quote_number)}</span>
-              </div>
-              <strong>{money(t.refrig_quotes?.total_final)}</strong>
-              <Badge status={t.status} />
-              <ChevronRight size={18} />
-            </div>
-          ))}
-
-          {!filtered.length && (
-            <Empty
-              title="Nenhum chamado encontrado"
-              text="Um chamado será criado automaticamente quando um orçamento for aprovado."
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ========================= CATÁLOGO ========================= */
-
-function ServiceCatalog({ refresh }) {
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('Todos');
-  const [search, setSearch] = useState('');
-  const [modal, setModal] = useState(false);
-  const [editing, setEditing] = useState(null);
-
-  async function load() {
-    setLoading(true);
-
-    const { data } = await supabase
-      .from('refrig_service_catalog')
-      .select('*')
-      .order('category')
-      .order('name');
-
-    setServices(data || []);
-    setLoading(false);
-  }
-
-  useEffect(() => { load(); }, [refresh]);
-
-  const filtered = services.filter(service => {
-    const categoryMatch =
-      filter === 'Todos' || service.category === filter;
-
-    const searchMatch =
-      `${service.name} ${service.description || ''}`
-        .toLowerCase()
-        .includes(search.toLowerCase());
-
-    return categoryMatch && searchMatch;
-  });
-
-  async function toggleActive(service) {
-    await supabase
-      .from('refrig_service_catalog')
-      .update({ active: !service.active })
-      .eq('id', service.id);
-
-    load();
-  }
-
-  async function remove(service) {
-    if (!window.confirm(`Excluir "${service.name}" do catálogo?`)) return;
-
-    const { error } = await supabase
-      .from('refrig_service_catalog')
-      .delete()
-      .eq('id', service.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    load();
-  }
-
-  return (
-    <div className="content">
-      <PageHead
-        title="Catálogo de serviços"
-        sub="Cadastre uma vez e reutilize os serviços nos próximos orçamentos."
-        action={
-          <button className="primary"
-            onClick={() => { setEditing(null); setModal(true); }}>
-            <Plus size={18} /> Novo serviço
-          </button>
-        }
-      />
-
-      <div className="catalog-toolbar">
-        <div className="catalog-search">
-          <Search size={17} />
-          <input placeholder="Buscar serviço..."
-            value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-      </div>
-
-      <div className="catalog-tabs">
-        {['Todos', ...categories].map(category => (
-          <button key={category}
-            className={filter === category ? 'selected' : ''}
-            onClick={() => setFilter(category)}>
-            {category === 'Todos' ? 'Todos' : categoryLabel(category)}
-          </button>
-        ))}
-      </div>
-
-      {loading ? <Loading /> : (
-        <div className="catalog-grid">
-          {filtered.map(service => (
-            <div className={`catalog-card ${!service.active ? 'inactive' : ''}`}
-              key={service.id}>
-
-              <div className="catalog-card-top">
-                <div>
-                  <span className="catalog-category">{categoryLabel(service.category)}</span>
-                  <h3>{service.name}</h3>
-                </div>
-                <strong>{money(service.default_price)}</strong>
-              </div>
-
-              {service.description && (
-                <p>{service.description}</p>
-              )}
-
-              {service.included && (
-                <div className="catalog-included">
-                  <small>O QUE ESTÁ INCLUSO</small>
-                  {String(service.included).split(/\r?\n|;/)
-                    .map(x => x.trim()).filter(Boolean)
-                    .slice(0, 5).map((x, i) => (
-                      <span key={i}><Check size={13} /> {x}</span>
-                    ))}
-                </div>
-              )}
-
-              <div className="catalog-actions">
-                <button className="secondary small"
-                  onClick={() => { setEditing(service); setModal(true); }}>
-                  <Pencil size={15} /> Editar
-                </button>
-                <button className="secondary small"
-                  onClick={() => toggleActive(service)}>
-                  {service.active ? 'Desativar' : 'Ativar'}
-                </button>
-                <button className="danger small"
-                  onClick={() => remove(service)}>
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {!filtered.length && (
-            <Empty
-              title="Nenhum serviço encontrado"
-              text="Cadastre seu primeiro serviço no catálogo."
-            />
-          )}
-        </div>
-      )}
-
-      {modal && (
-        <ServiceModal
-          service={editing}
-          onClose={() => setModal(false)}
-          onSaved={() => { setModal(false); load(); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function ServiceModal({ service, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    name: service?.name || '',
-    category: service?.category || categories[0],
-    description: service?.description || '',
-    included: service?.included || '',
-    default_price: service?.default_price ?? '',
-    active: service?.active ?? true
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function save() {
-    if (!form.name.trim()) {
-      setError('Informe o nome do serviço.');
-      return;
-    }
-
+  async function changeStatus(next){
     setSaving(true);
-    setError('');
-
-    try {
-      const { data: user } = await supabase.auth.getUser();
-
-      const payload = {
-        owner_id: user.user.id,
-        name: form.name,
-        category: form.category,
-        description: form.description,
-        included: form.included,
-        default_price: Number(form.default_price || 0),
-        active: form.active,
-        updated_at: new Date().toISOString()
-      };
-
-      const result = service
-        ? await supabase.from('refrig_service_catalog')
-            .update(payload).eq('id', service.id)
-        : await supabase.from('refrig_service_catalog')
-            .insert(payload);
-
-      if (result.error) throw result.error;
-      onSaved();
-    } catch (err) {
-      setError(err.message || 'Não foi possível salvar.');
-    } finally {
-      setSaving(false);
-    }
+    const {error}=await supabase.from('refrig_quotes').update({status:next}).eq('id',quote.id);
+    if(!error){setStatus(next);onChanged();} else alert(error.message);
+    setSaving(false);
   }
 
-  return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="modal-card" onMouseDown={e => e.stopPropagation()}>
-        <div className="modal-head">
-          <div>
-            <h2>{service ? 'Editar serviço' : 'Novo serviço'}</h2>
-            <p>Esses dados poderão ser usados automaticamente nos orçamentos.</p>
-          </div>
-          <button className="iconbtn" onClick={onClose}><X /></button>
-        </div>
+  async function getItemsForPdf(){
+    const {data:userData}=await supabase.auth.getUser();
+    const ownerId=userData?.user?.id;
+    if(!ownerId) return items;
+    const {data:catalogRows}=await supabase.from('refrig_service_catalog').select('name,included').eq('owner_id',ownerId);
+    const byName=new Map((catalogRows||[]).map(row=>[row.name,row.included||'']));
+    return items.map(item=>({ ...item, included:item.included || byName.get(item.service_name) || '' }));
+  }
 
-        <div className="form-grid">
-          <label>Nome do serviço*
-            <input value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-              placeholder="Ex.: Lavagem completa" />
-          </label>
+  async function handlePdf(){
+    if(pdfLoading)return;
+    setPdfLoading(true);
+    try{const pdfItems=await getItemsForPdf(); await generateQuotePdf({quote:{...quote,status},client,items:pdfItems,company});}
+    catch(error){console.error(error);alert('Não foi possível gerar o PDF. Verifique sua conexão e tente novamente.');}
+    finally{setPdfLoading(false);setActionsOpen(false);}
+  }
 
-          <label>Categoria*
-            <select value={form.category}
-              onChange={e => setForm({ ...form, category: e.target.value })}>
-              {categories.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
-            </select>
-          </label>
+  async function handleShare(){
+    const quoteNo=`ORC-${String(quote.quote_number).padStart(4,'0')}`;
+    const validity=quote.validity_days || 7;
+    const message=`Olá, ${client.name || 'cliente'}! Tudo bem?
 
-          <label className="full-field">Descrição
-            <textarea value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
-              placeholder="Explique brevemente o serviço." />
-          </label>
+Segue em anexo o orçamento ${quoteNo}, referente aos serviços solicitados, no valor total de ${money(quote.total_final)}.
 
-          <label className="full-field">O que está incluso
-            <textarea value={form.included}
-              onChange={e => setForm({ ...form, included: e.target.value })}
-              placeholder={"Um item por linha.\nEx.: Inspeção das conexões\nTeste de vazamento"} />
-          </label>
+O orçamento é válido por ${validity} dias. Em caso de dúvidas ou para aprovação, fico à disposição.
 
-          <label>Preço padrão
-            <input type="number" step="0.01" value={form.default_price}
-              onChange={e => setForm({ ...form, default_price: e.target.value })} />
-          </label>
-        </div>
+${displayCompanyName(company.company_name)} | Refrigeração`;
+    setActionsOpen(false);
 
-        {error && <div className="form-error">{error}</div>}
+    try{
+      const pdfItems=await getItemsForPdf();
+      const {blob,fileName}=await generateQuotePdf({
+        quote:{...quote,status},
+        client,
+        items:pdfItems,
+        company,
+        download:false
+      });
 
-        <div className="modal-actions">
-          <button className="secondary" onClick={onClose}>Cancelar</button>
-          <button className="primary" onClick={save} disabled={saving}>
-            {saving ? <LoaderCircle className="spin" size={18} /> : <Save size={18} />}
-            Salvar serviço
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+      const file=new File([blob],fileName,{type:'application/pdf'});
 
-/* ========================= CONFIGURAÇÕES ========================= */
-
-function SettingsPage({ refresh }) {
-  const [company, setCompany] = useState({
-    company_name: DEFAULT_COMPANY_NAME,
-    document: '',
-    phone: '',
-    whatsapp: '',
-    email: '',
-    address: ''
-  });
-
-  const [profileName, setProfileName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-
-      const { data: row } = await supabase
-        .from('refrig_company')
-        .select('*')
-        .eq('owner_id', auth.user.id)
-        .maybeSingle();
-
-      if (row) {
-        setCompany({
-          company_name: row.company_name || DEFAULT_COMPANY_NAME,
-          document: row.document || '',
-          phone: row.phone || '',
-          whatsapp: row.whatsapp || '',
-          email: row.email || auth.user.email || '',
-          address: row.address || ''
-        });
-      } else {
-        setCompany(c => ({ ...c, email: auth.user.email || '' }));
+      if(!navigator.share){
+        throw new Error('Este navegador não oferece o compartilhamento nativo.');
       }
 
-      setProfileName(auth.user.user_metadata?.full_name || '');
-      setLoading(false);
-    })();
-  }, []);
+      if(navigator.canShare && !navigator.canShare({files:[file]})){
+        throw new Error('Este navegador não permite compartilhar arquivos PDF.');
+      }
 
-  async function save() {
-    setSaving(true);
-    setMessage('');
-
-    try {
-      const { data: auth } = await supabase.auth.getUser();
-
-      const { error } = await supabase
-        .from('refrig_company')
-        .upsert({
-          ...company,
-          owner_id: auth.user.id,
-          company_name: company.company_name || DEFAULT_COMPANY_NAME
-        }, { onConflict: 'owner_id' });
-
-      if (error) throw error;
-
-      await supabase.auth.updateUser({
-        data: { full_name: profileName }
+      await navigator.share({
+        files:[file],
+        text:message,
+        title:`Orçamento ${quoteNo}`
       });
-
-      setMessage('Dados salvos com sucesso.');
-      refresh();
-    } catch (err) {
-      setMessage(err.message || 'Não foi possível salvar.');
-    } finally {
-      setSaving(false);
+    }catch(error){
+      if(error?.name==='AbortError') return;
+      console.error(error);
+      alert(`Não foi possível compartilhar o orçamento. ${error?.message || 'Tente novamente.'}`);
     }
   }
 
-  if (loading) return <div className="content"><Loading /></div>;
+  async function handleDelete(){
+    if(deleting)return;
+    const quoteNo=`ORC-${String(quote.quote_number).padStart(4,'0')}`;
+    const confirmed=window.confirm(`Excluir o ${quoteNo}?\n\nEssa ação é permanente e removerá o orçamento e os itens vinculados. Não será possível desfazer.`);
+    if(!confirmed){setActionsOpen(false);return;}
+    setDeleting(true);
+    try{
+      const {error:callError}=await supabase.from('refrig_service_calls').delete().eq('quote_id',quote.id);
+      if(callError)throw callError;
+      const {error:itemError}=await supabase.from('refrig_quote_items').delete().eq('quote_id',quote.id);
+      if(itemError)throw itemError;
+      const {error:quoteError}=await supabase.from('refrig_quotes').delete().eq('id',quote.id);
+      if(quoteError)throw quoteError;
+      onChanged();
+      setActionsOpen(false);
+      back();
+    }catch(error){
+      console.error(error);
+      alert(`Não foi possível excluir o orçamento.\n\n${error.message || 'Verifique as permissões do banco de dados.'}`);
+    }finally{
+      setDeleting(false);
+    }
+  }
 
-  return (
-    <div className="content">
-      <PageHead
-        title="Configurações"
-        sub="Gerencie seus dados e as informações usadas nos PDFs."
-      />
-
-      <div className="settings-grid">
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>Perfil</h2>
-              <p>Dados do acesso atual.</p>
-            </div>
-          </div>
-
-          <label>Nome do responsável
-            <input value={profileName}
-              onChange={e => setProfileName(e.target.value)}
-              placeholder="Daniel Alves" />
-          </label>
-
-          <label>E-mail
-            <input value={company.email} readOnly />
-          </label>
-
-          <button className="secondary"
-            onClick={() => supabase.auth.resetPasswordForEmail(
-              company.email,
-              { redirectTo: window.location.origin }
-            )}>
-            <RefreshCw size={17} /> Redefinir senha
-          </button>
-        </section>
-
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>Dados da empresa</h2>
-              <p>Serão utilizados automaticamente nos documentos.</p>
-            </div>
-          </div>
-
-          <div className="settings-help">
-            Por enquanto, use <strong>Daniel Alves</strong>.
-            Quando a marca estiver pronta, basta trocar aqui.
-          </div>
-
-          {[
-            ['company_name', 'Nome da empresa'],
-            ['document', 'CNPJ / CPF'],
-            ['phone', 'Telefone'],
-            ['whatsapp', 'WhatsApp'],
-            ['address', 'Endereço']
-          ].map(([key, label]) => (
-            <label key={key}>{label}
-              <input value={company[key] || ''}
-                onChange={e => setCompany({ ...company, [key]: e.target.value })} />
-            </label>
-          ))}
-
-          {message && (
-            <div className={message.includes('sucesso')
-              ? 'form-success' : 'form-error'}>
-              {message}
-            </div>
-          )}
-
-          <button className="primary" onClick={save} disabled={saving}>
-            {saving ? <LoaderCircle className="spin" size={18} /> : <Save size={18} />}
-            Salvar dados
-          </button>
-        </section>
+  const client=quote.refrig_clients||{};
+  return <div className="content quote-screen">
+    <button className="back" onClick={back}><ArrowLeft size={18}/> Voltar para orçamentos</button>
+    <PageHead title={`ORC-${String(quote.quote_number).padStart(4,'0')}`} sub="Detalhes do orçamento" action={
+      <div className="quote-detail-actions">
+        <button className="secondary" onClick={()=>onEdit(quote)}><Pencil size={16}/> Editar</button>
+        <button className="secondary" onClick={handlePdf} disabled={pdfLoading}>{pdfLoading?<LoaderCircle className="spin" size={16}/>:<Download size={16}/>} {pdfLoading?'Gerando…':'Gerar PDF'}</button>
+        <button className="secondary" onClick={handleShare}><Share2 size={16}/> Compartilhar</button>
+        <button className="danger-outline" onClick={handleDelete} disabled={deleting}><Trash2 size={16}/> {deleting?'Excluindo…':'Excluir'}</button>
       </div>
+    }/>
+    <div className="detail-grid">
+      <section className="panel"><div className="panel-head"><div><h2>Cliente</h2><p>Dados do solicitante</p></div><Badge status={status}/></div><div className="info-grid"><Info icon={UserRound} label="Nome" value={client.name||'—'}/><Info icon={FileText} label="CPF / CNPJ" value={client.document||client.cpf_cnpj||client.cpf||client.cnpj||'—'}/><Info icon={Phone} label="Telefone" value={client.phone||'—'}/><Info icon={MessageCircle} label="WhatsApp" value={client.whatsapp||'—'}/><Info icon={MapPin} label="Endereço" value={client.address||'—'}/><Info icon={Mail} label="E-mail" value={client.email||'—'}/></div></section>
+      <section className="panel"><div className="panel-head"><div><h2>Serviços</h2><p>Composição do orçamento</p></div></div>{items.map(i=><div className="service-line" key={i.id}><div><strong>{i.service_name}</strong><span>{i.quantity} × {i.refrig_equipment?.equipment_type || 'Equipamento'} {i.refrig_equipment?.capacity || ''}</span></div><strong>{money(Number(i.unit_final_value||0)*Number(i.quantity||1))}</strong></div>)}<div className="total"><span>Total</span><strong>{money(quote.total_final)}</strong></div></section>
     </div>
-  );
+    <section className="panel"><div className="panel-head"><div><h2>Status</h2><p>Atualize o andamento do orçamento.</p></div></div><div className="status-actions">{[['aguardando_resposta','Aguardando resposta'],['aprovado','Aprovar'],['recusado','Recusar'],['em_andamento','Em andamento'],['concluido','Concluir']].map(([id,label])=><button key={id} className={status===id?'selected':''} disabled={saving} onClick={()=>changeStatus(id)}>{label}</button>)}</div></section>
+    {quote.notes && <section className="panel"><h2>Observações</h2><p className="note">{quote.notes}</p></section>}
+  </div>;
 }
 
-function createUnusedComponents() {
-  return null;
+function Info({icon:Icon,label,value}){return <div className="info"><Icon size={17}/><div><small>{label}</small><span>{value}</span></div></div>}
+
+function Finance({setSelected,refresh}) {
+  const {quotes,loading}=useQuotes(refresh);
+  const approved=quotes.filter(q=>['aprovado','em_andamento','concluido'].includes(q.status));
+  const total=approved.reduce((a,q)=>a+Number(q.total_final||0),0);
+  return <div className="content finance-page"><PageHead title="Financeiro" sub="Acompanhe os valores dos serviços aprovados."/><div className="finance-cards"><div className="bigmetric"><span>Total aprovado</span><strong>{money(total)}</strong><small>Orçamentos aprovados, em andamento e concluídos.</small></div><div className="bigmetric"><span>Serviços aprovados</span><strong>{approved.length}</strong><small>Chamados vinculados ao orçamento.</small></div></div><div className="tablepanel finance-tablepanel"><div className="table-title"><div><h2>Movimentações</h2><p>Clique em um item para consultar o orçamento.</p></div></div>{loading?<Loading/>:<><table><thead><tr><th>Orçamento</th><th>Cliente</th><th>Data</th><th>Status</th><th>Valor</th></tr></thead><tbody>{approved.map(q=><tr key={q.id} onClick={()=>setSelected(q)}><td><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong></td><td>{q.refrig_clients?.name||'Cliente'}</td><td>{dateBR(q.issue_date)}</td><td><Badge status={q.status}/></td><td><strong>{money(q.total_final)}</strong></td></tr>)}</tbody></table><div className="finance-mobile-list">{approved.map(q=><div className="finance-mobile-card" key={q.id} onClick={()=>setSelected(q)}><div><strong>ORC-{String(q.quote_number).padStart(4,'0')}</strong><Badge status={q.status}/></div><h3>{q.refrig_clients?.name||'Cliente'}</h3><p>{dateBR(q.issue_date)}</p><strong>{money(q.total_final)}</strong></div>)}{!approved.length&&<Empty title="Nenhum orçamento aprovado" text="Os orçamentos aprovados aparecerão aqui."/>}</div></>}</div></div>;
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+function Tickets({setSelected,refresh}) { const [tickets,setTickets]=useState([]); const [loading,setLoading]=useState(true); useEffect(()=>{supabase.from('refrig_service_calls').select('*, refrig_quotes(*, refrig_clients(name, document, phone, whatsapp, email, address))').order('created_at',{ascending:false}).then(({data})=>{setTickets(data||[]);setLoading(false);});},[refresh]); return <div className="content"><PageHead title="Chamados" sub="Serviços aprovados e em execução."/><div className="ticket-filters"><button className="selected">Todos <b>{tickets.length}</b></button><button>Aprovados</button><button>Em andamento</button><button>Concluídos</button></div>{loading?<Loading/>:<div className="ticket-list">{tickets.map(t=><div className="ticket" key={t.id} onClick={()=>t.refrig_quotes&&setSelected(t.refrig_quotes)}><div className="ticket-num">CH-{String(t.call_number).padStart(4,'0')}</div><div className="grow"><strong>{t.refrig_quotes?.refrig_clients?.name||'Cliente'}</strong><span>ORC-{String(t.refrig_quotes?.quote_number||0).padStart(4,'0')}</span></div><strong>{money(t.refrig_quotes?.total_final)}</strong><Badge status={t.status==='aprovado'?'aprovado':t.status}/><ChevronRight size={18}/></div>)}{!tickets.length&&<Empty title="Nenhum chamado ainda" text="Um chamado será criado automaticamente quando um orçamento for aprovado."/>}</div>}</div> }
+
+function ServiceCatalog({refresh}) {
+  const [services,setServices]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState('');
+  const [editing,setEditing]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [search,setSearch]=useState('');
+  const [filter,setFilter]=useState('Todos');
+
+  async function load(){
+    setLoading(true); setError('');
+    const {data:userData}=await supabase.auth.getUser();
+    const ownerId=userData?.user?.id;
+    const {data,error:err}=await supabase.from('refrig_service_catalog').select('*').eq('owner_id',ownerId).order('category').order('name');
+    if(err){setError(err.message);setServices([]);setLoading(false);return;}
+    if(ownerId && !(data||[]).length){
+      const seed=DEFAULT_SERVICE_CATALOG.map(service=>({...service,owner_id:ownerId,active:true}));
+      const {data:created,error:seedError}=await supabase.from('refrig_service_catalog').insert(seed).select('*');
+      if(seedError){setError(seedError.message);setServices([]);} else setServices(created||[]);
+    } else setServices(data||[]);
+    setLoading(false);
+  }
+  useEffect(()=>{load();},[]);
+
+  function startNew(){setEditing({name:'',category:'Outros',description:'',included:'',default_price:'',active:true});}
+  function startEdit(service){setEditing({...service,default_price:service.default_price ?? ''});}
+
+  async function saveService(){
+    if(!editing.name.trim()) return setError('Informe o nome do serviço.');
+    setSaving(true); setError('');
+    try{
+      const {data:user}=await supabase.auth.getUser();
+      const payload={name:editing.name.trim(),category:editing.category||'Outros',description:editing.description||'',included:editing.included||'',default_price:Number(editing.default_price||0),active:editing.active!==false,owner_id:user.user.id};
+      let result;
+      if(editing.id) result=await supabase.from('refrig_service_catalog').update(payload).eq('id',editing.id).eq('owner_id',user.user.id).select().single();
+      else result=await supabase.from('refrig_service_catalog').insert(payload).select().single();
+      if(result.error) throw result.error;
+      setEditing(null); await load(); refresh();
+    }catch(e){setError(e.message||'Não foi possível salvar o serviço.');}
+    finally{setSaving(false);}
+  }
+
+  async function toggleService(service){
+    const {error:err}=await supabase.from('refrig_service_catalog').update({active:!service.active}).eq('id',service.id).eq('owner_id', (await supabase.auth.getUser()).data.user.id);
+    if(err) setError(err.message); else load();
+  }
+
+  async function deleteService(service){
+    if(!confirm(`Excluir o serviço “${service.name}” do catálogo?`)) return;
+    const {error:err}=await supabase.from('refrig_service_catalog').delete().eq('id',service.id).eq('owner_id', (await supabase.auth.getUser()).data.user.id);
+    if(err) setError(err.message); else load();
+  }
+
+  const filtered=services.filter(s=>(filter==='Todos'||s.category===filter) && `${s.name} ${s.category} ${s.description}`.toLowerCase().includes(search.toLowerCase()));
+  const categories=['Todos',...serviceCategories.filter(c=>services.some(s=>s.category===c))];
+
+  return <div className="content catalog-page">
+    <PageHead title="Catálogo de serviços" sub="Cadastre uma vez e escolha os serviços prontos ao criar um orçamento." action={<button className="primary" onClick={startNew}><Plus size={18}/> Novo serviço</button>}/>
+    {error&&<div className="form-error">{error}</div>}
+    <div className="catalog-toolbar"><div className="catalog-search"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar serviço..."/></div><div className="tabs catalog-tabs">{categories.map(c=><button key={c} className={filter===c?'selected':''} onClick={()=>setFilter(c)}>{c==='Todos'?'Todos':categoryLabel(c)}</button>)}</div></div>
+    {loading?<Loading/>:<div className="catalog-grid">{filtered.map(service=><article className={`catalog-card ${!service.active?'inactive':''}`} key={service.id}><div className="catalog-card-top"><span className="catalog-category">{categoryLabel(service.category)}</span><button className="iconbtn" title="Editar" onClick={()=>startEdit(service)}><Pencil size={16}/></button></div><h2>{service.name}</h2><p>{service.description||'Sem descrição cadastrada.'}</p>{service.included&&<div className="catalog-included"><strong>Incluso</strong><span>{service.included}</span></div>}<div className="catalog-card-bottom"><strong>{Number(service.default_price||0)>0?money(service.default_price):'Preço a definir'}</strong><div><button className="secondary" onClick={()=>toggleService(service)}>{service.active?'Desativar':'Ativar'}</button><button className="iconbtn catalog-delete" title="Excluir" onClick={()=>deleteService(service)}><Trash2 size={16}/></button></div></div></article>)}{!filtered.length&&<Empty title="Nenhum serviço encontrado" text="Adicione um novo serviço ao catálogo."/>}</div>}
+    {editing&&<div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&setEditing(null)}><div className="modal-card"><div className="panel-head"><div><h2>{editing.id?'Editar serviço':'Novo serviço'}</h2><p>Essas informações serão usadas no preenchimento e no PDF.</p></div><button className="iconbtn" onClick={()=>setEditing(null)}><X size={18}/></button></div><div className="form-grid"><label>Nome do serviço*<input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} placeholder="Ex.: Lavagem completa"/></label><label>Categoria*<select value={editing.category} onChange={e=>setEditing({...editing,category:e.target.value})}>{serviceCategories.map(c=><option key={c} value={c}>{categoryLabel(c)}</option>)}</select></label><label>Preço padrão<input type="number" step="0.01" min="0" value={editing.default_price} onChange={e=>setEditing({...editing,default_price:e.target.value})} placeholder="0,00"/></label></div><label>Descrição<input value={editing.description||''} onChange={e=>setEditing({...editing,description:e.target.value})} placeholder="Ex.: Lavagem completa de ar-condicionado"/></label><label>O que está incluso<textarea value={editing.included||''} onChange={e=>setEditing({...editing,included:e.target.value})} placeholder="Um item por linha"/></label><div className="modal-actions"><button className="secondary" onClick={()=>setEditing(null)}>Cancelar</button><button className="primary" onClick={saveService} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} {saving?'Salvando…':'Salvar serviço'}</button></div></div></div>}
+  </div>;
+}
+
+function SettingsPage({refresh}) {
+  const [company,setCompany]=useState({company_name:DEFAULT_COMPANY_NAME,document:'',phone:'',whatsapp:'',email:'',address:''});
+  const [profileName,setProfileName]=useState('');
+  const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [profileSaving,setProfileSaving]=useState(false); const [message,setMessage]=useState(''); const [profileMessage,setProfileMessage]=useState('');
+  useEffect(()=>{supabase.auth.getUser().then(async({data})=>{const {data:row}=await supabase.from('refrig_company').select('*').eq('owner_id',data.user.id).maybeSingle(); if(row)setCompany({...row,company_name:displayCompanyName(row.company_name)}); else setCompany(c=>({...c,email:data.user.email||''})); setProfileName(data.user.user_metadata?.full_name || DEFAULT_COMPANY_NAME); setLoading(false);});},[]);
+  async function saveProfile(){setProfileSaving(true);setProfileMessage('');const {error}=await supabase.auth.updateUser({data:{full_name:profileName.trim() || DEFAULT_COMPANY_NAME}});setProfileMessage(error?error.message:'Nome atualizado com sucesso.');setProfileSaving(false);if(!error)refresh();}
+  async function save(){setSaving(true);setMessage('');const {data}=await supabase.auth.getUser();const {error}=await supabase.from('refrig_company').upsert({...company,company_name:company.company_name||DEFAULT_COMPANY_NAME,owner_id:data.user.id},{onConflict:'owner_id'});setMessage(error?error.message:'Dados salvos com sucesso.');setSaving(false);if(!error)refresh();}
+  if(loading)return <div className="content"><Loading/> </div>;
+  return <div className="content"><PageHead title="Configurações" sub="Gerencie os dados que serão usados nos próximos orçamentos e PDFs."/><div className="settings-grid"><section className="panel"><div className="panel-head"><div><h2>Perfil</h2><p>Dados do acesso atual.</p></div></div><label>Nome do responsável<input value={profileName} onChange={e=>setProfileName(e.target.value)} placeholder="Nome do responsável"/></label><label>E-mail<input value={company.email} readOnly/></label>{profileMessage&&<div className={profileMessage.includes('sucesso')?'form-success':'form-error'}>{profileMessage}</div>}<button className="primary" onClick={saveProfile} disabled={profileSaving}>{profileSaving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} Salvar nome</button><button className="secondary" onClick={()=>supabase.auth.resetPasswordForEmail(company.email,{redirectTo:window.location.origin})}>Redefinir senha</button></section><section className="panel"><div className="panel-head"><div><h2>Dados da empresa</h2><p>Por enquanto, use Daniel Alves. Quando a marca estiver pronta, basta trocar aqui.</p></div></div>{[['company_name','Nome da empresa / marca'],['document','CNPJ / CPF (opcional)'],['phone','Telefone'],['whatsapp','WhatsApp'],['address','Endereço']].map(([k,l])=><label key={k}>{l}<input value={company[k]||''} onChange={e=>setCompany({...company,[k]:e.target.value})}/></label>)}{message&&<div className={message.includes('sucesso')?'form-success':'form-error'}>{message}</div>}<button className="primary" onClick={save} disabled={saving}>{saving?<LoaderCircle className="spin" size={18}/>:<Save size={18}/>} Salvar dados</button></section></div></div>;
+}
+
+createRoot(document.getElementById('root')).render(<App/>);
